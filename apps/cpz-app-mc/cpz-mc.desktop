@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Midnight Commander
+Name[uk]=Midnight Commander
+Comment=Two-panel file manager for the terminal
+Comment[uk]=Двопанельний файловий менеджер для термінала
+Exec=/usr/bin/mc
+Terminal=true
+Categories=Utility;FileManager;ConsoleOnly;
+Keywords=files;manager;commander;mc;file manager;
+Icon=system-file-manager
+X-CPZ-Contract=1

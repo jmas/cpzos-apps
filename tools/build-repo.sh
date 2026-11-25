@@ -26,6 +26,18 @@ echo "==> building cpz-system-apps"
 )
 mv packaging/cpz-system-apps/cpz-system-apps-*.pkg.tar.* "$OUT/pkgs/"
 
+echo "==> building application packages"
+for pkgbuild in apps/*/PKGBUILD; do
+    [ -f "$pkgbuild" ] || continue
+    dir=$(dirname "$pkgbuild")
+    echo "    $dir"
+    (
+        cd "$dir"
+        makepkg -A --nodeps --nocheck -f --noconfirm
+    )
+    mv "$dir"/*.pkg.tar.* "$OUT/pkgs/"
+done
+
 echo "==> generating the catalog"
 go run ./tools/build-catalog -packages "$OUT/pkgs" -out packaging/cpz-apps-catalog/apps.json
 

@@ -3,8 +3,11 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jmas/cpzos-apps/internal/apps"
 	"github.com/jmas/cpzos-apps/internal/tui"
@@ -43,6 +46,29 @@ Categories=AudioVideo;
 	t.Setenv("CPZ_CATALOG", filepath.Join(dir, "apps.json"))
 	t.Setenv("CPZ_NO_REFRESH", "1")
 	t.Setenv("CPZ_LANG", "uk")
+}
+
+func isQuit(cmd tea.Cmd) bool {
+	return cmd != nil &&
+		reflect.ValueOf(cmd).Pointer() == reflect.ValueOf(tea.Quit).Pointer()
+}
+
+func TestEscExitsListAndReturnsFromDetail(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 13
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if !isQuit(cmd) {
+		t.Fatal("Esc at the list root did not exit")
+	}
+	m.selectID("player.desktop")
+	nm, _ := m.openSelected()
+	m = nm.(Model)
+	nm, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = nm.(Model)
+	if m.view != viewList {
+		t.Fatalf("Esc in detail left view %v", m.view)
+	}
 }
 
 func TestListAndDetail(t *testing.T) {

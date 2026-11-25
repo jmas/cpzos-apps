@@ -109,6 +109,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tui.ActionBack:
 		if m.view == viewAbout {
 			m.view = viewRoot
+		} else {
+			return m, tea.Quit
 		}
 	case tui.ActionHelp:
 		m.help = true

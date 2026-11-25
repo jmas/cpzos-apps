@@ -29,11 +29,15 @@ apps. All four follow the binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
 `cpz-app` is one multicall binary:
 
 ```sh
-cpz-app home       # new tab: choose an app, replaces the window
+cpz-app home       # new tab: choose an app
 cpz-app apps       # Apps Manager
 cpz-app settings   # Settings, currently About system
-cpz-app exec FILE  # internal: run an argv file (tmux-safe, no shell)
+cpz-app run FILE NAME  # internal: run an argv file and return to Home
+cpz-app exec FILE      # internal: run an argv file (tmux-safe, no shell)
 ```
+
+The `run` supervisor is what makes quitting an app land back on Home instead
+of an empty tab. It has no input loop, so the app owns the terminal.
 
 Terminal is `/usr/share/applications/cpz-terminal.desktop` (`Exec=bash -l`,
 `Terminal=true`, `X-CPZ-System=true`); it needs no code in the binary.
@@ -75,6 +79,13 @@ device for testing, point a `[cpz-apps]` repository at `dist/repo` and run
 - `X-CPZ-System=true` and the `cpz-system-apps` package are never removable;
 - the catalog is data only (`depends=()`), which is why the background refresh
   can install it with `-S` without a full upgrade.
+
+## Example application
+
+`apps/cpz-app-mc` wraps the Arch `mc` package: it installs only a desktop
+entry and depends on `mc`. The catalog lists it as available; installing it
+through Apps Manager pulls `mc` from the Arch repositories. Removing it removes
+the entry and, if nothing else needs it, `mc`.
 
 ## Curation
 

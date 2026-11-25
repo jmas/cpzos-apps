@@ -83,7 +83,7 @@
     "cat.Graphics": "Графіка",
     "cat.Education": "Освіта",
     "cat.Science": "Наука",
-    "cli.usage": "usage: cpz-app home | apps [list|install|remove|update] | settings [about] | exec <file>",
+    "cli.usage": "usage: cpz-app home | apps [list|install|remove|update] | settings [about] | run <file> <name> | exec <file>",
     "cli.confirm": "{action} {name}? [y/N]",
     "cli.cancelled": "Скасовано",
     "cli.done": "Готово",

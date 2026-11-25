@@ -1,0 +1,18 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-app-mc
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Midnight Commander entry for CPZ Apps"
+arch=('any')
+url="https://midnight-commander.org/"
+license=('GPL-3.0-or-later')
+depends=('mc')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-mc.desktop" \
+        "$pkgdir/usr/share/applications/cpz-mc.desktop"
+}

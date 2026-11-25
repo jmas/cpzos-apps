@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/jmas/cpzos-apps/internal/apps"
 )
@@ -138,7 +139,7 @@ func NewTab(spec Spec) error {
 		_ = os.Remove(file)
 		return err
 	}
-	cmd := exec.Command("tmux", "-L", "cpz", "new-window", "-n", windowName(spec.Name), self, "exec", file)
+	cmd := exec.Command("tmux", "-L", "cpz", "new-window", "-n", windowName(spec.Name), self, "run", file, windowName(spec.Name))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(file)
 		return fmt.Errorf("tmux: %s", strings.TrimSpace(string(out)))
@@ -163,13 +164,60 @@ func Start(spec Spec) error {
 	return nil
 }
 
-// Replace runs the app in the current window, after renaming the tab.
-func Replace(spec Spec) error {
-	if os.Getenv("TMUX") != "" {
-		name := windowName(spec.Name)
-		_ = exec.Command("tmux", "-L", "cpz", "rename-window", "--", name).Run()
+// Supervised runs the app in the current window and returns to Home when it
+// exits. The supervisor is a separate cpz-app process with no input loop, so
+// the app owns the terminal and the tab never closes into a black screen.
+func Supervised(spec Spec) error {
+	if len(spec.Argv) == 0 {
+		return errors.New("empty command")
 	}
-	return execArgv(spec.Argv)
+	if _, err := exec.LookPath(spec.Argv[0]); err != nil {
+		return err
+	}
+	file, err := writeSpec(spec.Argv)
+	if err != nil {
+		return err
+	}
+	self, err := selfPath()
+	if err != nil {
+		_ = os.Remove(file)
+		return err
+	}
+	fmt.Print("\x1b[?1049l\x1b[?25h")
+	return syscall.Exec(self, []string{self, "run", file, windowName(spec.Name)}, os.Environ())
+}
+
+// RunSupervised waits for the app and starts Home again in the same window.
+func RunSupervised(file, name string) error {
+	argv, err := ReadSpec(file)
+	if err != nil || len(argv) == 0 {
+		if err == nil {
+			err = errors.New("empty spec")
+		}
+		fmt.Fprintf(os.Stderr, "cpz-app: %v\n", err)
+		time.Sleep(1500 * time.Millisecond)
+	} else {
+		renameWindow(name)
+		cmd := exec.Command(argv[0], argv[1:]...)
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "\n%s\n", err)
+			time.Sleep(1500 * time.Millisecond)
+		}
+	}
+	renameWindow("Home")
+	self, err := selfPath()
+	if err != nil {
+		return err
+	}
+	return syscall.Exec(self, []string{self, "home"}, os.Environ())
+}
+
+func renameWindow(name string) {
+	if os.Getenv("TMUX") == "" {
+		return
+	}
+	_ = exec.Command("tmux", "-L", "cpz", "rename-window", "--", windowName(name)).Run()
 }
 
 func windowName(s string) string {

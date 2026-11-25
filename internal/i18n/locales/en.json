@@ -81,7 +81,7 @@
     "cat.Graphics": "Graphics",
     "cat.Education": "Education",
     "cat.Science": "Science",
-    "cli.usage": "usage: cpz-app home | apps [list|install|remove|update] | settings [about] | exec <file>",
+    "cli.usage": "usage: cpz-app home | apps [list|install|remove|update] | settings [about] | run <file> <name> | exec <file>",
     "cli.confirm": "{action} {name}? [y/N]",
     "cli.cancelled": "Cancelled",
     "cli.done": "Done",

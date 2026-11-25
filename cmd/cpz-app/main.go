@@ -54,6 +54,16 @@ func run(args []string) int {
 		return runApps(args[1:], tr)
 	case "settings":
 		return runSettings(args[1:], tr)
+	case "run":
+		if len(args) != 3 {
+			fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+			return exitUsage
+		}
+		if err := launch.RunSupervised(args[1], args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", err.Error()))
+			return exitFailed
+		}
+		return exitOK
 	case "exec":
 		if len(args) != 2 {
 			fmt.Fprintln(os.Stderr, tr.T("cli.usage"))

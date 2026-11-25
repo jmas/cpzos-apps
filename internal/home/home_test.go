@@ -3,8 +3,11 @@ package home
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jmas/cpzos-apps/internal/tui"
 )
@@ -22,6 +25,51 @@ func setupApps(t *testing.T, body string) {
 	t.Setenv("XDG_DATA_DIRS", t.TempDir())
 	t.Setenv("CPZ_CATALOG", filepath.Join(dir, "missing.json"))
 	t.Setenv("CPZ_LANG", "uk")
+}
+
+func isQuit(cmd tea.Cmd) bool {
+	return cmd != nil &&
+		reflect.ValueOf(cmd).Pointer() == reflect.ValueOf(tea.Quit).Pointer()
+}
+
+func TestInstalledCatalogAppAppears(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=true
+Categories=Utility;
+`)
+	dir := os.Getenv("XDG_DATA_HOME")
+	cat := filepath.Join(dir, "apps.json")
+	if err := os.WriteFile(cat, []byte(`{"version":1,"generated":"2026-11-26T10:00:00Z","contract":1,"apps":[{"id":"demo.desktop","package":"cpz-app-demo","version":"1.0","name":{"en":"Demo","uk":"Демо"},"categories":["Utility"],"terminal":true,"system":false,"size":1,"contract":1}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_CATALOG", cat)
+	m := New()
+	m.width, m.height = 45, 13
+	if out := m.View(); !strings.Contains(out, "Демо") {
+		t.Fatalf("installed catalog app missing:\n%s", out)
+	}
+}
+
+func TestEscExitsAtRoot(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=true
+Categories=Utility;
+X-CPZ-System=true
+`)
+	m := New()
+	m.width, m.height = 45, 13
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if !isQuit(cmd) {
+		t.Fatal("Esc at the Home root did not exit")
+	}
 }
 
 func TestViewFitsPanel(t *testing.T) {

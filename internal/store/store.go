@@ -420,7 +420,7 @@ func (m Model) handleList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search.Active = true
 	case tui.ActionHelp:
 		m.help = true
-	case tui.ActionQuit:
+	case tui.ActionBack, tui.ActionQuit:
 		return m, tea.Quit
 	case tui.ActionConfirm:
 		return m.openSelected()

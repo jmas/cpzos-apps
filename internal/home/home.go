@@ -1,6 +1,7 @@
 package home
 
 import (
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,7 +37,15 @@ func New() Model {
 	lang := i18n.System()
 	tr := i18n.For(lang)
 	entries, _ := apps.LoadAll()
-	all := apps.Build(lang, entries, &catalog.Index{Version: 1})
+	path := os.Getenv("CPZ_CATALOG")
+	if path == "" {
+		path = catalog.DefaultPath
+	}
+	idx, err := catalog.Load(path)
+	if err != nil {
+		idx = &catalog.Index{Version: 1}
+	}
+	all := apps.Build(lang, entries, idx)
 	kept := all[:0]
 	for _, a := range all {
 		if a.ID != ownID {
@@ -108,7 +117,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search.Active = true
 	case tui.ActionHelp:
 		m.help = true
-	case tui.ActionQuit:
+	case tui.ActionBack, tui.ActionQuit:
 		return m, tea.Quit
 	case tui.ActionConfirm:
 		m.open()
@@ -144,7 +153,7 @@ func (m *Model) open() {
 		}
 		return
 	}
-	if err := launch.Replace(spec); err != nil {
+	if err := launch.Supervised(spec); err != nil {
 		m.status = m.tr.T("apps.status.failed", "error", err.Error())
 	}
 }
