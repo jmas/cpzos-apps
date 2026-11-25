@@ -137,7 +137,14 @@ func (m *Model) open() {
 		m.status = m.tr.T("apps.status.failed", "error", err.Error())
 		return
 	}
-	if err := launch.Replace(launch.Spec{Argv: argv, Name: app.Name, ID: app.ID, Path: app.Path}); err != nil {
+	spec := launch.Spec{Argv: argv, Name: app.Name, ID: app.ID, Path: app.Path}
+	if !app.Terminal {
+		if err := launch.Start(spec); err != nil {
+			m.status = m.tr.T("apps.status.failed", "error", err.Error())
+		}
+		return
+	}
+	if err := launch.Replace(spec); err != nil {
 		m.status = m.tr.T("apps.status.failed", "error", err.Error())
 	}
 }
