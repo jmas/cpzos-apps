@@ -63,9 +63,15 @@ refresh_catalog() {
     # Sync databases, then install the data-only catalog package. The catalog
     # has no dependencies and installs no code, so this is the single allowed
     # -S without -u; every real install below upgrades first.
-    pacman -Sy --noconfirm
+    if ! pacman -Sy --noconfirm; then
+        rm -f "$marker"
+        exit 1
+    fi
     log "refreshing cpz-apps-catalog"
-    pacman -S --needed --noconfirm cpz-apps-catalog
+    if ! pacman -S --needed --noconfirm cpz-apps-catalog; then
+        rm -f "$marker"
+        exit 1
+    fi
 }
 
 install_app() {
