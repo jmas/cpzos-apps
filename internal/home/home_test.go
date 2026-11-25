@@ -54,6 +54,30 @@ Categories=Utility;
 	}
 }
 
+func TestShiftLetterStartsSearch(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=true
+Categories=Utility;
+X-CPZ-System=true
+`)
+	m := New()
+	m.width, m.height = 45, 13
+	nm, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'M'}})
+	m = nm.(Model)
+	if !m.search.Active || m.search.Value != "M" {
+		t.Fatalf("search = active:%v value:%q", m.search.Active, m.search.Value)
+	}
+	nm, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = nm.(Model)
+	if m.search.Value != "Mf" {
+		t.Fatalf("d-pad key while typing = %q", m.search.Value)
+	}
+}
+
 func TestEscExitsAtRoot(t *testing.T) {
 	setupApps(t, `[Desktop Entry]
 Type=Application

@@ -82,6 +82,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.status != "" {
 		m.status = ""
 	}
+	if !m.search.Active {
+		if r, ok := tui.PrintableRune(msg); ok && !tui.NavRune(r) {
+			m.search.Active = true
+			m.search.Value = string(r)
+			m.filter()
+			return m, nil
+		}
+	}
 	if m.search.Active {
 		switch tui.ActionOf(msg, true) {
 		case tui.ActionBack:

@@ -10,11 +10,30 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/term"
+
 	"github.com/jmas/cpzos-apps/internal/apps"
 )
 
 // ErrNoDocument is returned for %f/%u: this UI has no document source.
 var ErrNoDocument = errors.New("entry needs a file or URL argument")
+
+// savedTerm is the terminal state captured before Bubble Tea enters raw mode.
+var savedTerm *term.State
+
+// SaveTerminal records the normal terminal state; call before the TUI starts.
+func SaveTerminal() {
+	if st, err := term.GetState(int(os.Stdin.Fd())); err == nil {
+		savedTerm = st
+	}
+}
+
+// RestoreTerminal puts the terminal back before handing it to a child.
+func RestoreTerminal() {
+	if savedTerm != nil {
+		_ = term.Restore(int(os.Stdin.Fd()), savedTerm)
+	}
+}
 
 // Spec is an executable launch derived from a desktop entry.
 type Spec struct {
@@ -184,6 +203,7 @@ func Supervised(spec Spec) error {
 		return err
 	}
 	fmt.Print("\x1b[?1049l\x1b[?25h")
+	RestoreTerminal()
 	return syscall.Exec(self, []string{self, "run", file, windowName(spec.Name)}, os.Environ())
 }
 
@@ -198,11 +218,15 @@ func RunSupervised(file, name string) error {
 		time.Sleep(1500 * time.Millisecond)
 	} else {
 		renameWindow(name)
+		state, _ := term.GetState(int(os.Stdin.Fd()))
 		cmd := exec.Command(argv[0], argv[1:]...)
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "\n%s\n", err)
 			time.Sleep(1500 * time.Millisecond)
+		}
+		if state != nil {
+			_ = term.Restore(int(os.Stdin.Fd()), state)
 		}
 	}
 	renameWindow("Home")

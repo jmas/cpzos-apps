@@ -53,63 +53,118 @@ func isQuit(cmd tea.Cmd) bool {
 		reflect.ValueOf(cmd).Pointer() == reflect.ValueOf(tea.Quit).Pointer()
 }
 
-func TestEscExitsListAndReturnsFromDetail(t *testing.T) {
-	setup(t)
-	m := New()
-	m.width, m.height = 45, 13
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	if !isQuit(cmd) {
-		t.Fatal("Esc at the list root did not exit")
-	}
-	m.selectID("player.desktop")
-	nm, _ := m.openSelected()
-	m = nm.(Model)
-	nm, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = nm.(Model)
-	if m.view != viewList {
-		t.Fatalf("Esc in detail left view %v", m.view)
+func selectMenuID(m *Model, id string) {
+	m.menu.Cursor = 0
+	for i, it := range m.menu.Items {
+		if it.ID == id {
+			m.menu.Cursor = i
+			return
+		}
 	}
 }
 
-func TestListAndDetail(t *testing.T) {
+func TestMenuStructure(t *testing.T) {
 	setup(t)
 	m := New()
 	m.width, m.height = 45, 13
+	if m.view != viewMenu {
+		t.Fatalf("view = %v, want menu", m.view)
+	}
+	ids := []string{}
+	for _, it := range m.menu.Items {
+		ids = append(ids, it.ID)
+	}
+	want := []string{itemUpdate, catInstalled, "AudioVideo", "Game"}
+	if strings.Join(ids, ",") != strings.Join(want, ",") {
+		t.Fatalf("menu = %v, want %v", ids, want)
+	}
 	out := m.View()
-	if len(strings.Split(out, "\n")) != 13 {
-		t.Fatalf("list lines:\n%s", out)
-	}
-	if !strings.Contains(out, "Плеєр") || !strings.Contains(out, "Віддалений") {
-		t.Errorf("apps missing:\n%s", out)
-	}
-	if !strings.Contains(out, "Оновити список") {
-		t.Errorf("update row missing:\n%s", out)
+	for _, s := range []string{"Оновити список", "Встановлені", "Аудіо та відео", "Ігри"} {
+		if !strings.Contains(out, s) {
+			t.Errorf("menu missing %q:\n%s", s, out)
+		}
 	}
 	if w := tui.Width(strings.Split(out, "\n")[0]); w > 45 {
 		t.Errorf("header too wide: %d", w)
 	}
+}
 
-	// Categories: All, Installed, System, Audio & Video, Games.
-	if len(m.cats) != 5 {
-		t.Fatalf("categories = %#v", m.cats)
+func TestEnterCategoryAndDetail(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 13
+	selectMenuID(&m, "AudioVideo")
+	nm, _ := m.handleMenu(tea.KeyMsg{Type: tea.KeyEnter})
+	m = nm.(Model)
+	if m.view != viewCategory {
+		t.Fatalf("view = %v, want category", m.view)
 	}
-	// Focus the installed Player and open the detail screen.
-	m.selectID("player.desktop")
-	nm, _ := m.openSelected()
+	if len(m.list.Items) != 1 || m.list.Items[0].Name != "Плеєр" {
+		t.Fatalf("items = %#v", m.list.Items)
+	}
+	nm, _ = m.handleCategory(tea.KeyMsg{Type: tea.KeyEnter})
 	m = nm.(Model)
 	if m.view != viewDetail {
-		t.Fatalf("view = %v, detail = %+v", m.view, m.detail)
+		t.Fatalf("view = %v, want detail", m.view)
 	}
-	out = m.View()
-	if !strings.Contains(out, "Видалити") || !strings.Contains(out, "Відкрити") {
-		t.Errorf("actions missing:\n%s", out)
+	if !strings.Contains(m.View(), "Видалити") || !strings.Contains(m.View(), "Відкрити") {
+		t.Errorf("actions missing:\n%s", m.View())
+	}
+	nm, _ = m.handleDetail(tea.KeyMsg{Type: tea.KeyEsc})
+	m = nm.(Model)
+	if m.view != viewCategory {
+		t.Fatalf("Esc in detail -> %v", m.view)
+	}
+	nm, _ = m.handleCategory(tea.KeyMsg{Type: tea.KeyEsc})
+	m = nm.(Model)
+	if m.view != viewMenu {
+		t.Fatalf("Esc in category -> %v", m.view)
+	}
+}
+
+func TestEscExitsMenu(t *testing.T) {
+	setup(t)
+	m := New()
+	_, cmd := m.handleMenu(tea.KeyMsg{Type: tea.KeyEsc})
+	if !isQuit(cmd) {
+		t.Fatal("Esc at the menu root did not exit")
+	}
+}
+
+func TestSearchInsideCategory(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 13
+	m.enterCategory("AudioVideo")
+	m.search.Active = true
+	m.search.Value = "пле"
+	m.query = "пле"
+	m.applyCategoryFilter()
+	if len(m.list.Items) != 1 || m.list.Items[0].Name != "Плеєр" {
+		t.Fatalf("items = %#v", m.list.Items)
+	}
+}
+
+func TestTypingStartsCategorySearch(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 13
+	m.enterCategory("AudioVideo")
+	nm, _ := m.handleCategory(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'P'}})
+	m = nm.(Model)
+	if !m.search.Active || m.search.Value != "P" {
+		t.Fatalf("search = active:%v value:%q", m.search.Active, m.search.Value)
+	}
+	nm, _ = m.handleCategory(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = nm.(Model)
+	if m.search.Value != "Pf" {
+		t.Fatalf("d-pad key while typing = %q", m.search.Value)
 	}
 }
 
 func TestSystemAppHasNoRemove(t *testing.T) {
 	setup(t)
 	m := New()
-	m.width, m.height = 45, 13
 	m.detail = apps.App{ID: "player.desktop", Name: "Player", Installed: true, System: true}
 	m.buildActions()
 	for _, it := range m.actions.Items {
@@ -119,14 +174,18 @@ func TestSystemAppHasNoRemove(t *testing.T) {
 	}
 }
 
-func TestSearchFilter(t *testing.T) {
+func TestUpdateConfirmCancels(t *testing.T) {
 	setup(t)
 	m := New()
-	m.search.Active = true
-	m.search.Value = "від"
-	m.query = "від"
-	m.applyFilter()
-	if len(m.list.Items) != 1 {
-		t.Fatalf("items = %#v", m.list.Items)
+	selectMenuID(&m, itemUpdate)
+	nm, _ := m.handleMenu(tea.KeyMsg{Type: tea.KeyEnter})
+	m = nm.(Model)
+	if m.view != viewConfirm {
+		t.Fatalf("view = %v, want confirm", m.view)
+	}
+	nm, _ = m.handleConfirm(tea.KeyMsg{Type: tea.KeyEsc})
+	m = nm.(Model)
+	if m.view != viewMenu {
+		t.Fatalf("Esc in confirm -> %v", m.view)
 	}
 }

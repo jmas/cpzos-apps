@@ -16,9 +16,14 @@ import (
 	"github.com/jmas/cpzos-apps/internal/launch"
 	"github.com/jmas/cpzos-apps/internal/pacman"
 	"github.com/jmas/cpzos-apps/internal/tui"
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 )
 
-const updateRow = "__update__"
+const (
+	itemUpdate   = "__update__"
+	catInstalled = "__installed"
+)
 
 type actionKind int
 
@@ -33,16 +38,12 @@ const (
 type view int
 
 const (
-	viewList view = iota
+	viewMenu view = iota
+	viewCategory
 	viewDetail
 	viewConfirm
 	viewWorking
 )
-
-type category struct {
-	ID    string
-	Label string
-}
 
 type refreshMsg struct {
 	err error
@@ -71,23 +72,22 @@ type Model struct {
 	catalogPath string
 	idx         *catalog.Index
 	all         []apps.App
-	cats        []category
-	cat         int
+	category    string
 	query       string
 
+	menu   tui.List
 	list   tui.List
 	search tui.Input
 	help   bool
 	status string
 
-	view      view
-	detail    apps.App
-	actions   tui.List
-	confirm   tui.Confirm
-	pending   actionKind
-	working   string
-	returnTo  view
-	refreshID string
+	view     view
+	detail   apps.App
+	actions  tui.List
+	confirm  tui.Confirm
+	pending  actionKind
+	working  string
+	returnTo view
 }
 
 // New builds the model from the installed catalog, synchronously; it reads
@@ -104,8 +104,9 @@ func New() Model {
 		idx:         &catalog.Index{Version: 1},
 	}
 	m.search.Prompt = tr.T("apps.search")
-	m.confirm.Question = ""
 	m.reload()
+	m.view = viewMenu
+	m.refreshMenu()
 	return m
 }
 
@@ -141,73 +142,97 @@ func (m *Model) reload() {
 		m.idx = &catalog.Index{Version: 1}
 	}
 	m.all = apps.Build(m.lang, entries, m.idx)
-	m.buildCategories()
-	m.applyFilter()
+	m.refreshMenu()
+	if m.view == viewCategory {
+		m.applyCategoryFilter()
+	}
 }
 
-func (m *Model) buildCategories() {
-	current := ""
-	if len(m.cats) > 0 && m.cat < len(m.cats) {
-		current = m.cats[m.cat].ID
+func (m *Model) refreshMenu() {
+	prev, _ := m.menu.Selected()
+	m.menu.SetItems(m.menuItems())
+	if prev.ID != "" {
+		for i, it := range m.menu.Items {
+			if it.ID == prev.ID {
+				m.menu.Cursor = i
+				m.menu.EnsureVisible(m.menuRows())
+				break
+			}
+		}
 	}
-	m.cats = []category{
-		{ID: "", Label: m.tr.T("apps.category.all")},
-		{ID: "__installed", Label: m.tr.T("apps.category.installed")},
-		{ID: "__system", Label: m.tr.T("apps.category.system")},
+}
+
+func (m *Model) menuItems() []tui.Item {
+	items := make([]tui.Item, 0, 8)
+	right := m.tr.T("apps.row.never")
+	if !m.idx.Generated.IsZero() {
+		right = m.tr.T("apps.row.update_at", "date", m.idx.Generated.Local().Format("2006-01-02"))
 	}
-	seen := map[string]bool{}
+	items = append(items, tui.Item{ID: itemUpdate, Name: m.tr.T("apps.row.update"), Right: right})
+
+	installed := 0
+	counts := map[string]int{}
 	for _, a := range m.all {
-		cat := apps.MainCategory(a.Categories)
-		if cat == "" || seen[cat] || cat == "System" {
-			continue
+		if a.Installed {
+			installed++
 		}
-		seen[cat] = true
-		m.cats = append(m.cats, category{ID: cat, Label: categoryLabel(m.tr, cat)})
+		if cat := apps.MainCategory(a.Categories); cat != "" {
+			counts[cat]++
+		}
 	}
-	sort.SliceStable(m.cats[3:], func(i, j int) bool {
-		return m.cats[3+i].Label < m.cats[3+j].Label
+	items = append(items, tui.Item{
+		ID:    catInstalled,
+		Name:  m.tr.T("apps.category.installed"),
+		Right: fmt.Sprintf("%d", installed),
 	})
-	m.cat = 0
-	for i, c := range m.cats {
-		if c.ID == current {
-			m.cat = i
-			break
-		}
+
+	cats := make([]string, 0, len(counts))
+	for cat := range counts {
+		cats = append(cats, cat)
 	}
+	coll := collate.New(language.Make(m.lang))
+	sort.Slice(cats, func(i, j int) bool {
+		return coll.CompareString(categoryLabel(m.tr, cats[i]), categoryLabel(m.tr, cats[j])) < 0
+	})
+	for _, cat := range cats {
+		items = append(items, tui.Item{
+			ID:    cat,
+			Name:  categoryLabel(m.tr, cat),
+			Right: fmt.Sprintf("%d", counts[cat]),
+		})
+	}
+	return items
 }
 
-func categoryLabel(tr *i18n.Translator, cat string) string {
-	if cat == "" {
-		return ""
-	}
-	key := "cat." + cat
-	if label := tr.T(key); label != key {
-		return label
-	}
-	return cat
+func (m *Model) enterCategory(id string) {
+	m.category = id
+	m.query = ""
+	m.search.Clear()
+	m.search.Active = false
+	m.view = viewCategory
+	m.status = ""
+	m.list.Cursor = 0
+	m.list.Offset = 0
+	m.applyCategoryFilter()
 }
 
-func (m *Model) visibleApps() []apps.App {
-	if len(m.cats) == 0 {
-		return nil
-	}
-	cat := m.cats[m.cat].ID
+func (m *Model) leaveCategory() {
+	m.view = viewMenu
+	m.query = ""
+	m.search.Clear()
+	m.search.Active = false
+	m.status = ""
+}
+
+func (m *Model) filteredApps() []apps.App {
 	out := make([]apps.App, 0, len(m.all))
 	for _, a := range m.all {
-		switch cat {
-		case "":
-		case "__installed":
+		if m.category == catInstalled {
 			if !a.Installed {
 				continue
 			}
-		case "__system":
-			if !a.System {
-				continue
-			}
-		default:
-			if apps.MainCategory(a.Categories) != cat {
-				continue
-			}
+		} else if apps.MainCategory(a.Categories) != m.category {
+			continue
 		}
 		if !apps.Match(a, m.query, m.lang) {
 			continue
@@ -217,21 +242,10 @@ func (m *Model) visibleApps() []apps.App {
 	return out
 }
 
-func (m *Model) applyFilter() {
+func (m *Model) applyCategoryFilter() {
 	prev, _ := m.list.Selected()
-	list := m.visibleApps()
-	items := make([]tui.Item, 0, len(list)+1)
-	cat := ""
-	if len(m.cats) > 0 {
-		cat = m.cats[m.cat].ID
-	}
-	if cat == "" && m.query == "" {
-		right := m.tr.T("apps.row.never")
-		if !m.idx.Generated.IsZero() {
-			right = m.tr.T("apps.row.update_at", "date", m.idx.Generated.Local().Format("2006-01-02"))
-		}
-		items = append(items, tui.Item{ID: updateRow, Name: m.tr.T("apps.row.update"), Right: right})
-	}
+	list := m.filteredApps()
+	items := make([]tui.Item, 0, len(list))
 	for _, a := range list {
 		item := tui.Item{ID: a.ID, Name: a.Name, Right: a.Version}
 		if a.Installed {
@@ -249,10 +263,11 @@ func (m *Model) applyFilter() {
 }
 
 func (m *Model) selectID(id string) {
+	m.list.Cursor = 0
 	for i, it := range m.list.Items {
 		if it.ID == id {
 			m.list.Cursor = i
-			m.list.EnsureVisible(m.listRows())
+			m.list.EnsureVisible(m.categoryRows())
 			return
 		}
 	}
@@ -267,7 +282,18 @@ func (m *Model) find(id string) (apps.App, bool) {
 	return apps.App{}, false
 }
 
-func (m *Model) listRows() int {
+func (m Model) menuRows() int {
+	rows := m.height - 1
+	if m.status != "" {
+		rows--
+	}
+	if rows < 1 {
+		rows = 1
+	}
+	return rows
+}
+
+func (m Model) categoryRows() int {
 	rows := m.height - 1
 	if m.status != "" {
 		rows--
@@ -310,11 +336,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case opMsg:
-		m.working = ""
-		m.view = m.returnTo
 		id := m.detail.ID
 		m.reload()
+		m.working = ""
 		if msg.err != nil {
+			m.view = m.returnTo
 			line := firstLine(msg.out)
 			if line == "" {
 				line = msg.err.Error()
@@ -326,12 +352,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if id != "" {
+		switch msg.kind {
+		case actUpdate:
+			m.view = viewMenu
+		case actRemove:
+			if len(m.filteredApps()) == 0 {
+				m.leaveCategory()
+			} else {
+				m.view = viewCategory
+			}
+		default:
 			if a, ok := m.find(id); ok {
 				m.detail = a
 				m.buildActions()
 			}
-			m.selectID(id)
+			m.view = viewDetail
 		}
 		m.status = m.tr.T("apps.status.done")
 		return m, nil
@@ -339,14 +374,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	}
 	return m, nil
-}
-
-func firstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-	}
-	return s
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -365,38 +392,86 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.view {
+	case viewMenu:
+		return m.handleMenu(msg)
+	case viewCategory:
+		return m.handleCategory(msg)
 	case viewConfirm:
 		return m.handleConfirm(msg)
 	case viewDetail:
 		return m.handleDetail(msg)
-	default:
-		return m.handleList(msg)
 	}
+	return m, nil
 }
 
-func (m Model) handleList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	visible := m.menuRows()
+	switch tui.ActionOf(msg, false) {
+	case tui.ActionUp:
+		m.menu.Move(-1, visible)
+	case tui.ActionDown:
+		m.menu.Move(1, visible)
+	case tui.ActionPageUp:
+		m.menu.Move(-visible, visible)
+	case tui.ActionPageDown:
+		m.menu.Move(visible, visible)
+	case tui.ActionFirst:
+		m.menu.MoveFirst()
+	case tui.ActionLast:
+		m.menu.MoveLast(visible)
+	case tui.ActionHelp:
+		m.help = true
+	case tui.ActionBack, tui.ActionQuit:
+		return m, tea.Quit
+	case tui.ActionConfirm:
+		item, ok := m.menu.Selected()
+		if !ok {
+			return m, nil
+		}
+		if item.ID == itemUpdate {
+			m.pending = actUpdate
+			m.returnTo = viewMenu
+			m.confirm.Open(m.tr.T("apps.confirm.update"))
+			m.view = viewConfirm
+			return m, nil
+		}
+		m.enterCategory(item.ID)
+	}
+	return m, nil
+}
+
+func (m Model) handleCategory(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if !m.search.Active {
+		if r, ok := tui.PrintableRune(msg); ok && !tui.NavRune(r) {
+			m.search.Active = true
+			m.search.Value = string(r)
+			m.query = m.search.Value
+			m.applyCategoryFilter()
+			return m, nil
+		}
+	}
 	if m.search.Active {
 		switch tui.ActionOf(msg, true) {
 		case tui.ActionBack:
 			m.search.Clear()
 			m.search.Active = false
 			m.query = ""
-			m.applyFilter()
+			m.applyCategoryFilter()
 			return m, nil
 		case tui.ActionConfirm, tui.ActionNextField:
 			m.search.Active = false
 			m.query = m.search.Value
-			m.applyFilter()
+			m.applyCategoryFilter()
 			return m, nil
 		}
 		if m.search.Handle(msg) {
 			m.query = m.search.Value
-			m.applyFilter()
+			m.applyCategoryFilter()
 		}
 		return m, nil
 	}
 
-	visible := m.listRows()
+	visible := m.categoryRows()
 	switch tui.ActionOf(msg, false) {
 	case tui.ActionUp:
 		m.list.Move(-1, visible)
@@ -410,17 +485,13 @@ func (m Model) handleList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.list.MoveFirst()
 	case tui.ActionLast:
 		m.list.MoveLast(visible)
-	case tui.ActionLeft:
-		m.cat = (m.cat - 1 + len(m.cats)) % len(m.cats)
-		m.applyFilter()
-	case tui.ActionRight:
-		m.cat = (m.cat + 1) % len(m.cats)
-		m.applyFilter()
 	case tui.ActionNextField:
 		m.search.Active = true
 	case tui.ActionHelp:
 		m.help = true
-	case tui.ActionBack, tui.ActionQuit:
+	case tui.ActionBack:
+		m.leaveCategory()
+	case tui.ActionQuit:
 		return m, tea.Quit
 	case tui.ActionConfirm:
 		return m.openSelected()
@@ -431,13 +502,6 @@ func (m Model) handleList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) openSelected() (tea.Model, tea.Cmd) {
 	item, ok := m.list.Selected()
 	if !ok {
-		return m, nil
-	}
-	if item.ID == updateRow {
-		m.pending = actUpdate
-		m.returnTo = viewList
-		m.confirm.Open(m.tr.T("apps.confirm.update"))
-		m.view = viewConfirm
 		return m, nil
 	}
 	app, ok := m.find(item.ID)
@@ -489,7 +553,7 @@ func (m Model) handleDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tui.ActionDown:
 		m.actions.Move(1, visible)
 	case tui.ActionBack:
-		m.view = viewList
+		m.view = viewCategory
 	case tui.ActionHelp:
 		m.help = true
 	case tui.ActionQuit:
@@ -501,7 +565,7 @@ func (m Model) handleDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		switch item.ID {
 		case "back":
-			m.view = viewList
+			m.view = viewCategory
 		case "open":
 			return m.openDetail()
 		case "install":
@@ -515,7 +579,7 @@ func (m Model) handleDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.pending = actRemove
-			m.returnTo = viewList
+			m.returnTo = viewCategory
 			m.confirm.Open(m.tr.T("apps.confirm.remove", "name", m.detail.Name))
 			m.view = viewConfirm
 		}
@@ -577,12 +641,10 @@ func opCmd(kind actionKind, pkg string) tea.Cmd {
 			verb = "remove"
 		case actUpdate:
 			verb = "refresh-catalog"
+			pkg = ""
 		}
 		if verb == "" {
 			return opMsg{kind: actNone}
-		}
-		if kind == actUpdate {
-			pkg = ""
 		}
 		out, err := pacman.Run(ctx, verb, pkg)
 		return opMsg{kind: kind, out: out, err: err}
@@ -609,16 +671,21 @@ func (m Model) View() string {
 		s.Body = m.confirm.Render(tui.YesNo{Yes: m.tr.T("common.yes"), No: m.tr.T("common.no")})
 	case viewWorking:
 		s.Body = []string{m.working}
-	default:
-		rows := m.listRows()
-		cat := m.cats[m.cat]
-		s.Context = fmt.Sprintf("%s  %d/%d", cat.Label, len(m.visibleApps()), len(m.all))
+	case viewCategory:
+		label := categoryLabel(m.tr, m.category)
+		if m.category == catInstalled {
+			label = m.tr.T("apps.category.installed")
+		}
+		s.Context = fmt.Sprintf("%s  %d", label, len(m.list.Items))
+		rows := m.categoryRows()
 		var body []string
 		if m.search.Active {
 			body = append(body, tui.NormalStyle.Render(m.search.Render(m.width)))
 		}
 		body = append(body, m.list.Render(m.width, rows)...)
 		s.Body = body
+	default:
+		s.Body = m.menu.Render(m.width, m.menuRows())
 	}
 	return s.Render()
 }
@@ -658,6 +725,25 @@ func (m Model) detailBody() []string {
 	acts := m.actions.Render(m.width, len(m.actions.Items))
 	lines = append(lines, acts...)
 	return lines
+}
+
+func categoryLabel(tr *i18n.Translator, cat string) string {
+	if cat == "" {
+		return ""
+	}
+	key := "cat." + cat
+	if label := tr.T(key); label != key {
+		return label
+	}
+	return cat
+}
+
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	return s
 }
 
 func humanSize(n int64) string {

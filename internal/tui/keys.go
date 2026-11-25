@@ -1,6 +1,10 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"unicode"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 // Action is a navigation intent decoded from a key press.
 type Action int
@@ -22,6 +26,26 @@ const (
 	ActionHelp
 	ActionQuit
 )
+
+// PrintableRune returns the character of a text key.
+func PrintableRune(msg tea.KeyMsg) (rune, bool) {
+	if msg.Type == tea.KeySpace {
+		return ' ', true
+	}
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && unicode.IsPrint(msg.Runes[0]) {
+		return msg.Runes[0], true
+	}
+	return 0, false
+}
+
+// NavRune reports whether a plain character is a navigation key.
+func NavRune(r rune) bool {
+	switch r {
+	case 'f', 'а', 'x', 'ч', 'z', 'я', 'c', 'с', 'h', 'р', '?':
+		return true
+	}
+	return false
+}
 
 // ActionOf decodes the CPZ navigation model. On the Cardputer Zero the plain
 // F/X/Z/C keys are the physical d-pad; on the ua layout they arrive as
