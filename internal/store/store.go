@@ -101,6 +101,7 @@ func New() Model {
 		width:       45,
 		height:      13,
 		catalogPath: catalogEnv(),
+		idx:         &catalog.Index{Version: 1},
 	}
 	m.search.Prompt = tr.T("apps.search")
 	m.confirm.Question = ""
@@ -136,6 +137,8 @@ func (m *Model) reload() {
 	entries, _ := apps.LoadAll()
 	if idx, err := catalog.Load(m.catalogPath); err == nil {
 		m.idx = idx
+	} else {
+		m.idx = &catalog.Index{Version: 1}
 	}
 	m.all = apps.Build(m.lang, entries, m.idx)
 	m.buildCategories()

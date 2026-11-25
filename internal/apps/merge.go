@@ -29,6 +29,9 @@ type App struct {
 
 // Build merges installed entries with the catalog. Installed data wins.
 func Build(lang string, installed []Entry, idx *catalog.Index) []App {
+	if idx == nil {
+		idx = &catalog.Index{Version: 1}
+	}
 	byID := idx.ByID()
 	out := make([]App, 0, len(installed)+len(idx.Apps))
 	seen := map[string]bool{}
