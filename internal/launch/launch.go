@@ -117,6 +117,12 @@ func split(s string) ([]string, error) {
 // NewTab opens a terminal app in a new tmux window. The command is passed as a
 // spec file so tmux never has to quote an argument list.
 func NewTab(spec Spec) error {
+	if len(spec.Argv) == 0 {
+		return errors.New("empty command")
+	}
+	if _, err := exec.LookPath(spec.Argv[0]); err != nil {
+		return err
+	}
 	file, err := writeSpec(spec.Argv)
 	if err != nil {
 		return err
@@ -144,6 +150,9 @@ func NewTab(spec Spec) error {
 func Start(spec Spec) error {
 	if len(spec.Argv) == 0 {
 		return errors.New("empty command")
+	}
+	if _, err := exec.LookPath(spec.Argv[0]); err != nil {
+		return err
 	}
 	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
