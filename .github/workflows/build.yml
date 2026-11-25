@@ -38,11 +38,13 @@ jobs:
           chown -R builder .
       - name: build packages and repository
         run: sudo -u builder ./tools/build-repo.sh
+      - name: require the signing key
+        run: test -n "$GPG_KEY_ID" || { echo "CPZ_UI_KEY_ID is not configured" >&2; exit 1; }
       - name: sign
-        if: env.GPG_KEY_ID != ''
         run: |
           printf '%s' "${{ secrets.CPZ_UI_KEY }}" | gpg --batch --import
-          for p in dist/pkgs/*.pkg.tar.*; do
+          for p in dist/repo/*.pkg.tar.*; do
+            case "$p" in *.sig) continue ;; esac
             gpg --batch --yes --detach-sign -u "$GPG_KEY_ID" "$p"
           done
           cd dist/repo
