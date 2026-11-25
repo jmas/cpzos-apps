@@ -53,6 +53,9 @@ func TestTextModeKeepsLetters(t *testing.T) {
 	if got := ActionOf(tea.KeyMsg{Type: tea.KeyEsc}, true); got != ActionBack {
 		t.Errorf("esc must stay back in text mode, got %v", got)
 	}
+	if got := ActionOf(tea.KeyMsg{Type: tea.KeyEnter}, true); got != ActionConfirm {
+		t.Errorf("enter must stay confirm in text mode, got %v", got)
+	}
 }
 
 func TestListFitsPanelWidth(t *testing.T) {

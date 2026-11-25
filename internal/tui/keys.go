@@ -37,6 +37,8 @@ func ActionOf(msg tea.KeyMsg, textMode bool) Action {
 		return ActionNextField
 	case "shift+tab":
 		return ActionPrevField
+	case "enter":
+		return ActionConfirm
 	case "pgup":
 		return ActionPageUp
 	case "pgdown":
@@ -71,8 +73,6 @@ func ActionOf(msg tea.KeyMsg, textMode bool) Action {
 		return ActionLeft
 	case "c", "с": // physical C
 		return ActionRight
-	case "enter":
-		return ActionConfirm
 	case "h", "р", "?":
 		return ActionHelp
 	}
