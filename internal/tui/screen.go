@@ -40,7 +40,7 @@ func (s Screen) Render() string {
 		}
 	}
 	if s.Status != "" && s.Height > 1 {
-		lines = append(lines, DimStyle.Render(Fit(s.Status, s.Width)))
+		lines = append(lines, NormalStyle.Render(Fit(s.Status, s.Width)))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Home
-Name[uk]=Домівка
+Name[uk]=Головна
 Comment=Choose an app for this tab
 Comment[uk]=Виберіть додаток для цієї вкладки
 Exec=/usr/bin/cpz-app home

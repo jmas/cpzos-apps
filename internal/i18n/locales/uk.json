@@ -16,7 +16,7 @@
     "common.available": "Доступно",
     "help.title": "Клавіші",
     "help.body": "F / X / Z / C   рух\nEnter          відкрити\nEsc            назад\nTab            пошук\nHome / End     початок / кінець\nPgUp / PgDn    сторінка\nH або ?        ця довідка\n\nAlt+O  додатки   Alt+T  вкладка\nAlt+W  закрити   Alt+Tab  далі",
-    "home.title": "Домівка",
+    "home.title": "Головна",
     "home.search": "Пошук додатків",
     "apps.title": "Менеджер додатків",
     "apps.category.all": "Усі",

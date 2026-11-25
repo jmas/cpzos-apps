@@ -70,7 +70,10 @@ refresh_catalog() {
 
 install_app() {
     pkg=$1
-    protected "$pkg" && die "protected package: $pkg"
+    if protected "$pkg"; then
+        printf 'app-install: protected package: %s\n' "$pkg" >&2
+        exit 5
+    fi
 
     log "install $pkg: full system upgrade first"
     pacman -Syu --noconfirm
@@ -84,7 +87,10 @@ install_app() {
 
 remove_app() {
     pkg=$1
-    protected "$pkg" && die "protected package: $pkg"
+    if protected "$pkg"; then
+        printf 'app-install: protected package: %s\n' "$pkg" >&2
+        exit 5
+    fi
     pacman -Qq -- "$pkg" >/dev/null 2>&1 || die "not installed: $pkg"
     log "remove $pkg"
     pacman -Rns --noconfirm -- "$pkg"
