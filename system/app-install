@@ -1,0 +1,103 @@
+#!/bin/sh
+# CPZ package helper. The only privileged entry point for Apps Manager.
+#
+#   app-install refresh-catalog
+#   app-install install <package>
+#   app-install remove  <package>
+#
+# Installed by cpz-system-apps; sudoers allows user cpz to run this file only.
+set -eu
+export LC_ALL=C
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+umask 022
+
+die() {
+    printf 'app-install: %s\n' "$*" >&2
+    exit 1
+}
+log() {
+    command -v logger >/dev/null 2>&1 && logger -t cpz-app-install -- "$*" || true
+}
+
+[ "$(id -u)" -eq 0 ] || die "must run as root"
+[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog|install <pkg>|remove <pkg>"
+
+case "$1" in
+    refresh-catalog)
+        [ "$#" -eq 1 ] || die "refresh-catalog takes no arguments"
+        ;;
+    install|remove)
+        [ "$#" -eq 2 ] || die "$1 takes exactly one package"
+        printf '%s' "$2" | grep -Eq '^[a-z0-9][a-z0-9@._+-]*$' ||
+            die "invalid package name: $2"
+        ;;
+    *)
+        die "unknown action: $1"
+        ;;
+esac
+
+protected() {
+    pkg=$1
+    case "$pkg" in
+        cpz-system-apps|cpz-apps-catalog|cpz-ui)
+            return 0
+            ;;
+    esac
+    [ -f /usr/share/cpz/protected-packages ] || return 1
+    grep -Fxq -- "$pkg" /usr/share/cpz/protected-packages
+}
+
+refresh_catalog() {
+    mkdir -p /var/lib/cpz
+    marker=/var/lib/cpz/refresh
+    if [ -f "$marker" ]; then
+        last=$(stat -c %Y "$marker" 2>/dev/null || printf 0)
+        now=$(date +%s)
+        if [ $((now - last)) -lt 600 ]; then
+            log "refresh skipped: rate limited"
+            exit 0
+        fi
+    fi
+    : > "$marker"
+
+    # Sync databases, then install the data-only catalog package. The catalog
+    # has no dependencies and installs no code, so this is the single allowed
+    # -S without -u; every real install below upgrades first.
+    pacman -Sy --noconfirm
+    log "refreshing cpz-apps-catalog"
+    pacman -S --needed --noconfirm cpz-apps-catalog
+}
+
+install_app() {
+    pkg=$1
+    protected "$pkg" && die "protected package: $pkg"
+
+    log "install $pkg: full system upgrade first"
+    pacman -Syu --noconfirm
+
+    if ! pacman -Si -- "$pkg" 2>/dev/null | grep -Eq '^Repository[[:space:]]*:[[:space:]]*cpz-apps$'; then
+        printf 'app-install: not an app from [cpz-apps]: %s\n' "$pkg" >&2
+        exit 4
+    fi
+    pacman -S --needed --noconfirm -- "$pkg"
+}
+
+remove_app() {
+    pkg=$1
+    protected "$pkg" && die "protected package: $pkg"
+    pacman -Qq -- "$pkg" >/dev/null 2>&1 || die "not installed: $pkg"
+    log "remove $pkg"
+    pacman -Rns --noconfirm -- "$pkg"
+}
+
+case "$1" in
+    refresh-catalog)
+        refresh_catalog
+        ;;
+    install)
+        install_app "$2"
+        ;;
+    remove)
+        remove_app "$2"
+        ;;
+esac

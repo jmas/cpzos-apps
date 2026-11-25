@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+Name[uk]=Налаштування
+Comment=System information and settings
+Comment[uk]=Відомості про систему та налаштування
+Exec=/usr/bin/cpz-app settings
+Terminal=true
+Categories=Settings;System;
+Keywords=settings;about;system;info;
+X-CPZ-System=true
+X-CPZ-Contract=1

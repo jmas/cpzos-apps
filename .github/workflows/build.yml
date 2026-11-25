@@ -1,0 +1,56 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+      - run: go vet ./...
+      - run: go test ./...
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+
+  package:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    env:
+      GPG_KEY_ID: ${{ secrets.CPZ_UI_KEY_ID }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - run: pacman -Syu --noconfirm go git github-cli sudo
+      - uses: actions/checkout@v4
+      - name: builder user
+        run: |
+          useradd -m builder
+          chown -R builder .
+      - name: build packages and repository
+        run: sudo -u builder ./tools/build-repo.sh
+      - name: sign
+        if: env.GPG_KEY_ID != ''
+        run: |
+          printf '%s' "${{ secrets.CPZ_UI_KEY }}" | gpg --batch --import
+          for p in dist/pkgs/*.pkg.tar.*; do
+            gpg --batch --yes --detach-sign -u "$GPG_KEY_ID" "$p"
+          done
+          cd dist/repo
+          repo-add --sign --key "$GPG_KEY_ID" cpz-apps.db.tar.gz ./*.pkg.tar.*
+      - name: publish apps-stable
+        run: |
+          tag=apps-stable
+          gh release view "$tag" >/dev/null 2>&1 || \
+            gh release create "$tag" --title "CPZ apps (stable)" \
+              --notes "Signed app repository. See cpz-arch for the trust root."
+          gh release upload "$tag" dist/repo/* --clobber

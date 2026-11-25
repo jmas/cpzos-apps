@@ -1,0 +1,44 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-system-apps
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="CPZ system apps: Home, Apps Manager, Settings and the package helper"
+arch=('aarch64')
+url="https://github.com/jmas/cpzos-apps"
+license=('BSD-3-Clause')
+depends=('cpz-apps-catalog')
+makedepends=('go')
+options=('!strip')
+source=()
+sha256sums=()
+
+build() {
+    export CGO_ENABLED=0
+    export GOARCH=arm64
+    export GOFLAGS="-trimpath -buildvcs=false"
+    (
+        cd "$startdir/../.."
+        go build -ldflags "-s -w" -o "$srcdir/cpz-app" ./cmd/cpz-app
+    )
+}
+
+package() {
+    install -Dm755 "$srcdir/cpz-app" "$pkgdir/usr/bin/cpz-app"
+
+    install -Dm755 "$startdir/../../system/app-install" \
+        "$pkgdir/usr/lib/cpz/app-install"
+    install -Dm440 "$startdir/../../system/20-cpz-apps.sudoers" \
+        "$pkgdir/etc/sudoers.d/20-cpz-apps"
+    install -Dm644 "$startdir/../../system/protected-packages" \
+        "$pkgdir/usr/share/cpz/protected-packages"
+    install -Dm644 "$startdir/../../system/cpz-apps.tmpfiles.conf" \
+        "$pkgdir/usr/lib/tmpfiles.d/cpz-apps.conf"
+
+    install -Dm644 "$startdir/../../system/desktop/cpz-app-home.desktop" \
+        "$pkgdir/usr/share/applications/cpz-app-home.desktop"
+    install -Dm644 "$startdir/../../system/desktop/cpz-apps-manager.desktop" \
+        "$pkgdir/usr/share/applications/cpz-apps-manager.desktop"
+    install -Dm644 "$startdir/../../system/desktop/cpz-settings.desktop" \
+        "$pkgdir/usr/share/applications/cpz-settings.desktop"
+}

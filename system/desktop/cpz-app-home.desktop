@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Home
+Name[uk]=Домівка
+Comment=Choose an app for this tab
+Comment[uk]=Виберіть додаток для цієї вкладки
+Exec=/usr/bin/cpz-app home
+Terminal=true
+Categories=System;
+Keywords=home;launcher;apps;start;
+X-CPZ-System=true
+X-CPZ-Contract=1

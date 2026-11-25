@@ -1,0 +1,7 @@
+dist/
+pkg/
+src/
+packaging/cpz-apps-catalog/apps.json
+*.pkg.tar.*
+*.sig
+.DS_Store
