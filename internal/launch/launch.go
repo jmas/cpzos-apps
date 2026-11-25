@@ -166,7 +166,9 @@ func NewTab(spec Spec) error {
 	return nil
 }
 
-// Start launches a graphical client as a child of the session.
+// Start launches a graphical client as a child of the session. It must not
+// consume the Home terminal, so stdin is detached; errors go to a log file and
+// to the tmux message line, otherwise a failed game just does nothing.
 func Start(spec Spec) error {
 	if len(spec.Argv) == 0 {
 		return errors.New("empty command")
@@ -174,13 +176,53 @@ func Start(spec Spec) error {
 	if _, err := exec.LookPath(spec.Argv[0]); err != nil {
 		return err
 	}
-	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	if err := cmd.Start(); err != nil {
+	logFile, err := os.CreateTemp(specDir(), "app.")
+	if err != nil {
 		return err
 	}
-	go cmd.Wait()
+	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
+	cmd.Stdin = nil
+	cmd.Stdout, cmd.Stderr = logFile, logFile
+	cmd.Env = os.Environ()
+	if err := cmd.Start(); err != nil {
+		logFile.Close()
+		os.Remove(logFile.Name())
+		return err
+	}
+	go func() {
+		runErr := cmd.Wait()
+		_ = logFile.Close()
+		if runErr == nil {
+			_ = os.Remove(logFile.Name())
+			return
+		}
+		notifyFailure(spec.Name, logFile.Name(), runErr)
+	}()
 	return nil
+}
+
+func notifyFailure(name, logPath string, runErr error) {
+	line := ""
+	if b, err := os.ReadFile(logPath); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if l = strings.TrimSpace(l); l != "" {
+				line = l
+			}
+		}
+	}
+	msg := "App failed: " + name
+	if line != "" {
+		msg += ": " + line
+	} else if runErr != nil {
+		msg += ": " + runErr.Error()
+	}
+	if len(msg) > 200 {
+		msg = msg[:200]
+	}
+	msg = strings.ReplaceAll(msg, "#", "##")
+	// A leading space keeps a log line that starts with "-" from being parsed
+	// as a tmux option.
+	_ = exec.Command("tmux", "-L", "cpz", "display-message", "-d", "8000", " "+msg).Run()
 }
 
 // Supervised runs the app in the current window and returns to Home when it

@@ -4,7 +4,7 @@ Name=Doom
 Name[uk]=Doom
 Comment=Classic Doom with the free Freedoom data
 Comment[uk]=Класичний Doom на вільних даних Freedoom
-Exec=/usr/bin/doomretro -iwad /usr/share/cpz/doom/freedoom1.wad
+Exec=/usr/bin/env SDL_VIDEODRIVER=wayland /usr/bin/doomretro -iwad /usr/share/cpz/doom/freedoom1.wad
 Terminal=false
 Categories=Game;ActionGame;
 Keywords=fps;shooter;game;freedoom;
