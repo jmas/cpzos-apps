@@ -30,7 +30,7 @@ jobs:
       GPG_KEY_ID: ${{ secrets.CPZ_UI_KEY_ID }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - run: pacman -Syu --noconfirm go git github-cli sudo
+      - run: pacman -Syu --noconfirm go git github-cli sudo gnupg
       - uses: actions/checkout@v4
       - name: builder user
         run: |
