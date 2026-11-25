@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -57,6 +59,65 @@ func TestNormalize(t *testing.T) {
 	for in, want := range cases {
 		if got := Normalize(in); got != want {
 			t.Errorf("Normalize(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestCatalogParity(t *testing.T) {
+	en, err := load("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	uk, err := load("uk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := map[string]bool{}
+	for k := range en.text {
+		keys[k] = true
+	}
+	for k := range en.forms {
+		keys[k] = true
+	}
+	var missing []string
+	for k := range keys {
+		if _, ok := uk.text[k]; ok {
+			continue
+		}
+		if _, ok := uk.forms[k]; ok {
+			continue
+		}
+		missing = append(missing, k)
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Errorf("missing uk keys: %v", missing)
+	}
+
+	ph := regexp.MustCompile(`\{[a-z]+\}`)
+	check := func(key, a, b string) {
+		ga := ph.FindAllString(a, -1)
+		gb := ph.FindAllString(b, -1)
+		sort.Strings(ga)
+		sort.Strings(gb)
+		if strings.Join(ga, ",") != strings.Join(gb, ",") {
+			t.Errorf("%s: placeholders %v vs %v", key, ga, gb)
+		}
+	}
+	for k, v := range en.text {
+		if uv, ok := uk.text[k]; ok {
+			check(k, v, uv)
+		}
+	}
+	for k, forms := range en.forms {
+		uf, ok := uk.forms[k]
+		if !ok {
+			continue
+		}
+		for form, v := range forms {
+			if uv, ok := uf[form]; ok {
+				check(k+"."+form, v, uv)
+			}
 		}
 	}
 }
