@@ -51,6 +51,7 @@ Comment=x
 Exec=true
 Terminal=true
 Categories=Utility;
+X-CPZ-System=true
 `
 	if err := os.WriteFile(filepath.Join(dir, "applications", "demo.desktop"), []byte(entry), 0o644); err != nil {
 		t.Fatal(err)

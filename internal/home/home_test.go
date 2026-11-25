@@ -32,6 +32,7 @@ Name[uk]=Демо
 Exec=true
 Terminal=true
 Categories=Utility;
+X-CPZ-System=true
 `)
 	m := New()
 	m.width, m.height = 45, 13

@@ -17,8 +17,10 @@ background through a narrow helper.
 ## System apps
 
 Home, Apps Manager and Settings are one binary on the shared `internal/tui`
-kit; Terminal is a desktop entry that starts a login shell. All four follow the
-binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
+kit; Terminal is a desktop entry that starts a login shell. Home and the
+catalog list only the system apps and installed apps that come from the
+catalog; unrelated desktop entries shipped by the session (foot, help) are not
+apps. All four follow the binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
 
 - plain `F` / `X` / `Z` / `C` navigation (no Fn), arrows, `Enter`, `Esc`;
 - 40×10 minimum layout, one focus bar, no borders, no footer;

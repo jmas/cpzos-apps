@@ -95,6 +95,17 @@ func TestMergeInstalledWins(t *testing.T) {
 	}
 }
 
+func TestUnlistedInfrastructureHidden(t *testing.T) {
+	installed := []Entry{
+		{ID: "foot.desktop", Fields: map[string]string{"Name": "Foot", "Exec": "foot", "Categories": "System;"}},
+		{ID: "terminal.desktop", Fields: map[string]string{"Name": "Terminal", "Exec": "bash", "X-CPZ-System": "true"}},
+	}
+	list := Build("en", installed, &catalog.Index{Version: 1})
+	if len(list) != 1 || list[0].ID != "terminal.desktop" {
+		t.Fatalf("list = %#v", list)
+	}
+}
+
 func TestMainCategory(t *testing.T) {
 	if got := MainCategory([]string{"Player", "AudioVideo"}); got != "AudioVideo" {
 		t.Errorf("got %q", got)

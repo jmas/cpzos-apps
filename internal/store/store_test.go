@@ -29,6 +29,9 @@ Categories=AudioVideo;
 		t.Fatal(err)
 	}
 	cat := `{"version":1,"generated":"2026-11-26T10:00:00Z","contract":1,"apps":[
+	  {"id":"player.desktop","package":"cpz-app-player","version":"1.0",
+	   "name":{"en":"Player","uk":"Плеєр"},"comment":{"en":"Play music"},
+	   "categories":["AudioVideo"],"terminal":true,"system":false,"size":1048576,"contract":1},
 	  {"id":"remote.desktop","package":"cpz-app-remote","version":"1.0",
 	   "name":{"en":"Remote","uk":"Віддалений"},"comment":{"en":"Remote app"},
 	   "categories":["Game"],"terminal":true,"system":false,"size":1048576,"contract":1}]}`

@@ -37,6 +37,14 @@ func Build(lang string, installed []Entry, idx *catalog.Index) []App {
 	seen := map[string]bool{}
 
 	for _, e := range installed {
+		rec, inCatalog := byID[e.ID]
+		system := e.System() || (inCatalog && rec.System)
+		// A desktop entry is an app when it belongs to the system apps or to
+		// the catalog. Foot, Help and other session infrastructure entries are
+		// desktop files too, but they are not user-facing apps.
+		if !inCatalog && !system {
+			continue
+		}
 		a := App{
 			ID:         e.ID,
 			Path:       e.Path,
@@ -47,14 +55,13 @@ func Build(lang string, installed []Entry, idx *catalog.Index) []App {
 			Keywords:   e.Keywords(lang),
 			Exec:       e.Exec(),
 			Terminal:   e.Terminal(),
-			System:     e.System(),
+			System:     system,
 			Installed:  true,
 		}
-		if rec, ok := byID[e.ID]; ok {
+		if inCatalog {
 			a.Package = rec.Package
 			a.Version = rec.Version
 			a.Size = rec.Size
-			a.System = a.System || rec.System
 			if len(a.Categories) == 0 {
 				a.Categories = rec.Categories
 			}
