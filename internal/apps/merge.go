@@ -70,7 +70,7 @@ func Build(lang string, installed []Entry, idx *catalog.Index) []App {
 	}
 
 	for _, rec := range idx.Apps {
-		if seen[rec.ID] {
+		if seen[rec.ID] || rec.Contract > 1 {
 			continue
 		}
 		out = append(out, App{
