@@ -5,7 +5,7 @@ This repository is the source of the signed `[cpz-apps]` pacman repository;
 it is not part of the base image.
 
 ```text
-cpz-system-apps     Home, Apps Manager and Settings (one binary, cpz-app)
+cpz-system-apps     Home, Apps Manager, Settings, Terminal
 cpz-apps-catalog    data-only catalog of available apps (apps.json)
 cpz-app-<name>      applications; each installs desktop entries
 ```
@@ -16,7 +16,8 @@ background through a narrow helper.
 
 ## System apps
 
-All three are console apps on the shared `internal/tui` kit and follow the
+Home, Apps Manager and Settings are one binary on the shared `internal/tui`
+kit; Terminal is a desktop entry that starts a login shell. All four follow the
 binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
 
 - plain `F` / `X` / `Z` / `C` navigation (no Fn), arrows, `Enter`, `Esc`;
@@ -31,6 +32,9 @@ cpz-app apps       # Apps Manager
 cpz-app settings   # Settings, currently About system
 cpz-app exec FILE  # internal: run an argv file (tmux-safe, no shell)
 ```
+
+Terminal is `/usr/share/applications/cpz-terminal.desktop` (`Exec=bash -l`,
+`Terminal=true`, `X-CPZ-System=true`); it needs no code in the binary.
 
 ## Headless
 

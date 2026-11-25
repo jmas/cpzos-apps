@@ -3,7 +3,7 @@
 pkgname=cpz-system-apps
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="CPZ system apps: Home, Apps Manager, Settings and the package helper"
+pkgdesc="CPZ system apps: Home, Apps Manager, Settings, Terminal and the package helper"
 arch=('aarch64')
 url="https://github.com/jmas/cpzos-apps"
 license=('BSD-3-Clause')
@@ -41,4 +41,6 @@ package() {
         "$pkgdir/usr/share/applications/cpz-apps-manager.desktop"
     install -Dm644 "$startdir/../../system/desktop/cpz-settings.desktop" \
         "$pkgdir/usr/share/applications/cpz-settings.desktop"
+    install -Dm644 "$startdir/../../system/desktop/cpz-terminal.desktop" \
+        "$pkgdir/usr/share/applications/cpz-terminal.desktop"
 }
