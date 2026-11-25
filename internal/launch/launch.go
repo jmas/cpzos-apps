@@ -245,5 +245,8 @@ func execArgv(argv []string) error {
 	if err != nil {
 		return err
 	}
+	// Bubble Tea runs in the alternate screen; leave it before handing the
+	// terminal to the app so a plain shell starts on the normal screen.
+	fmt.Print("\x1b[?1049l\x1b[?25h")
 	return syscall.Exec(bin, argv, os.Environ())
 }
