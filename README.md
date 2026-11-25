@@ -87,6 +87,10 @@ entry and depends on `mc`. The catalog lists it as available; installing it
 through Apps Manager pulls `mc` from the Arch repositories. Removing it removes
 the entry and, if nothing else needs it, `mc`.
 
+`apps/cpz-app-doom` depends on the `doomretro` engine and packages the
+Freedoom data (`freedoom1.wad`, BSD-3-Clause). The entry starts Doom Retro
+with that WAD, so no commercial game data is needed.
+
 ## Curation
 
 Pull requests only. One application per PR, with a desktop entry, a PKGBUILD
