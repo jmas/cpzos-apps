@@ -138,7 +138,7 @@ func NewTab(spec Spec) error {
 		_ = os.Remove(file)
 		return err
 	}
-	cmd := exec.Command("tmux", "-L", "cpz", "new-window", self, "exec", file)
+	cmd := exec.Command("tmux", "-L", "cpz", "new-window", "-n", windowName(spec.Name), self, "exec", file)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(file)
 		return fmt.Errorf("tmux: %s", strings.TrimSpace(string(out)))
