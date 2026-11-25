@@ -48,7 +48,8 @@ jobs:
             gpg --batch --yes --detach-sign -u "$GPG_KEY_ID" "$p"
           done
           cd dist/repo
-          repo-add --sign --key "$GPG_KEY_ID" cpz-apps.db.tar.gz ./*.pkg.tar.*
+          find . -maxdepth 1 -name '*.pkg.tar.*' ! -name '*.sig' -print0 |
+            xargs -0 repo-add --sign --key "$GPG_KEY_ID" cpz-apps.db.tar.gz
       - name: publish apps-stable
         run: |
           tag=apps-stable
