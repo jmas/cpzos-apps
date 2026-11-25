@@ -666,7 +666,11 @@ func (m Model) View() string {
 	case viewDetail:
 		s.Title = m.detail.Name
 		s.Context = m.detail.Version
-		s.Body = m.detailBody()
+		rows := m.height - 1
+		if m.status != "" {
+			rows--
+		}
+		s.Body = m.detailBody(rows)
 	case viewConfirm:
 		s.Body = m.confirm.Render(tui.YesNo{Yes: m.tr.T("common.yes"), No: m.tr.T("common.no")})
 	case viewWorking:
@@ -690,41 +694,60 @@ func (m Model) View() string {
 	return s.Render()
 }
 
-func (m Model) detailBody() []string {
+// detailBody keeps the action list on the last rows. Metadata that does not
+// fit is dropped; an action hidden under the tmux status row is a bug.
+func (m Model) detailBody(rows int) []string {
 	a := m.detail
-	var lines []string
+	acts := m.actions.Render(m.width, len(m.actions.Items))
+	if rows < len(acts)+1 {
+		rows = len(acts) + 1
+	}
+	metaLimit := rows - len(acts) - 1 // one blank gap above the actions
+	if metaLimit < 1 {
+		metaLimit = 1
+	}
+
+	var meta []string
 	if a.Comment != "" {
 		wrapped := wrap(a.Comment, m.width)
 		if len(wrapped) > 2 {
 			wrapped = wrapped[:2]
 		}
-		lines = append(lines, wrapped...)
+		meta = append(meta, wrapped...)
 	}
-	lines = append(lines, "")
+	var parts []string
 	if cat := apps.MainCategory(a.Categories); cat != "" {
-		lines = append(lines, m.tr.T("apps.detail.categories")+": "+categoryLabel(m.tr, cat))
-	}
-	if a.Package != "" {
-		lines = append(lines, m.tr.T("apps.detail.package")+": "+a.Package)
+		parts = append(parts, categoryLabel(m.tr, cat))
 	}
 	if a.Version != "" {
-		lines = append(lines, m.tr.T("apps.detail.version")+": "+a.Version)
+		parts = append(parts, a.Version)
 	}
 	if a.Size > 0 {
-		lines = append(lines, m.tr.T("apps.detail.size")+": "+humanSize(a.Size))
+		parts = append(parts, humanSize(a.Size))
+	}
+	if len(parts) > 0 {
+		meta = append(meta, strings.Join(parts, " · "))
+	}
+	if a.Package != "" {
+		meta = append(meta, m.tr.T("apps.detail.package")+": "+a.Package)
 	}
 	state := m.tr.T("apps.detail.available")
 	if a.Installed {
 		state = m.tr.T("apps.detail.installed")
 	}
-	lines = append(lines, state)
 	if a.System {
-		lines = append(lines, m.tr.T("apps.detail.system"))
+		state += " · " + m.tr.T("apps.detail.system")
 	}
-	lines = append(lines, "")
-	acts := m.actions.Render(m.width, len(m.actions.Items))
-	lines = append(lines, acts...)
-	return lines
+	meta = append(meta, state)
+	if len(meta) > metaLimit {
+		meta = meta[:metaLimit]
+	}
+
+	body := append([]string{}, meta...)
+	for len(body) < rows-len(acts) {
+		body = append(body, "")
+	}
+	return append(body, acts...)
 }
 
 func categoryLabel(tr *i18n.Translator, cat string) string {

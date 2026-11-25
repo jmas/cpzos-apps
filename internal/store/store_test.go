@@ -122,6 +122,26 @@ func TestEnterCategoryAndDetail(t *testing.T) {
 	}
 }
 
+func TestDetailActionsFitThePanel(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 10
+	m.enterCategory("AudioVideo")
+	nm, _ := m.handleCategory(tea.KeyMsg{Type: tea.KeyEnter})
+	m = nm.(Model)
+	out := m.View()
+	lines := strings.Split(out, "\n")
+	if len(lines) != 10 {
+		t.Fatalf("got %d lines, want 10:\n%s", len(lines), out)
+	}
+	if !strings.Contains(out, "Видалити") {
+		t.Fatalf("Remove is not visible:\n%s", out)
+	}
+	if !strings.Contains(lines[len(lines)-1], "Назад") {
+		t.Fatalf("last row is not the Back action: %q", lines[len(lines)-1])
+	}
+}
+
 func TestEscExitsMenu(t *testing.T) {
 	setup(t)
 	m := New()
