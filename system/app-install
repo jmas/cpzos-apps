@@ -97,7 +97,10 @@ remove_app() {
         printf 'app-install: protected package: %s\n' "$pkg" >&2
         exit 5
     fi
-    pacman -Qq -- "$pkg" >/dev/null 2>&1 || die "not installed: $pkg"
+    if ! pacman -Qq -- "$pkg" >/dev/null 2>&1; then
+        printf 'app-install: not installed: %s\n' "$pkg" >&2
+        exit 4
+    fi
     log "remove $pkg"
     pacman -Rns --noconfirm -- "$pkg"
 }
