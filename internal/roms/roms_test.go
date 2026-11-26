@@ -133,9 +133,28 @@ func TestMednafenConfigUsesScancodes(t *testing.T) {
 		"nes.input.port1.gamepad.right keyboard 0x0 6",
 		"nes.input.port1.gamepad.start keyboard 0x0 40",
 		"nes.input.port1.gamepad.select keyboard 0x0 42",
+		"snes_faust.renderer mt",
+		"snes_faust.input.port1.gamepad.down keyboard 0x0 27",
+		"sound.device hw:CARD=ES8389Audio,DEV=0",
+		"sound.rate 32000",
+		"video.driver sdl",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("mednafen.cfg is missing %q", want)
 		}
+	}
+}
+
+func TestSnesUsesFaust(t *testing.T) {
+	snes, ok := ByID("snes")
+	if !ok {
+		t.Fatal("no snes system")
+	}
+	if snes.Module != "snes_faust" {
+		t.Fatalf("snes module = %q, want snes_faust", snes.Module)
+	}
+	argv := strings.Join(snes.Argv("/roms/game.sfc"), " ")
+	if !strings.Contains(argv, "-force_module snes_faust") {
+		t.Fatalf("snes argv = %q", argv)
 	}
 }

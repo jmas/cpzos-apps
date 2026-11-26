@@ -37,7 +37,7 @@ type System struct {
 // Systems is the curated order shown in Roms.
 var Systems = []System{
 	{ID: "nes", Name: "NES", Module: "nes", Emulator: "mednafen", Exts: []string{".nes", ".unf", ".unif"}},
-	{ID: "snes", Name: "SNES", Module: "snes", Emulator: "mednafen", Exts: []string{".sfc", ".smc", ".swc", ".fig"}},
+	{ID: "snes", Name: "SNES", Module: "snes_faust", Emulator: "mednafen", Exts: []string{".sfc", ".smc", ".swc", ".fig"}},
 	{ID: "genesis", Name: "Sega Genesis", Module: "md", Emulator: "mednafen", Exts: []string{".md", ".gen", ".bin", ".smd"}},
 	{ID: "gb", Name: "Game Boy", Module: "", Emulator: "mgba", Exts: []string{".gb", ".gbc"}},
 	{ID: "gba", Name: "Game Boy Advance", Module: "", Emulator: "mgba", Exts: []string{".gba"}},
