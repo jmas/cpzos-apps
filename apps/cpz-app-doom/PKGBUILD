@@ -1,7 +1,7 @@
 # Maintainer: CPZ <cpz-ui@jmas.github.io>
 
 pkgname=cpz-app-doom
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
 pkgdesc="Doom with the free Freedoom data for CPZ Games"
 arch=('any')
