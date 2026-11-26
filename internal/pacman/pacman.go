@@ -115,6 +115,26 @@ func InstalledVersion(ctx context.Context, pkg string) string {
 	return ""
 }
 
+// Reason picks the line worth showing when a helper call fails. The helper
+// returns the tail of the pacman output, so its first line is usually
+// "resolving dependencies…" — useless. A line with "error:" is the reason (a
+// bad mirror, a signature, a full disk); otherwise the last line is the
+// closest thing to a summary.
+func Reason(out string) string {
+	last := ""
+	for _, l := range strings.Split(out, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		if strings.Contains(strings.ToLower(l), "error:") {
+			return l
+		}
+		last = l
+	}
+	return last
+}
+
 func firstLine(s string) string {
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		return s[:i]

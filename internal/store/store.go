@@ -341,7 +341,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.working = ""
 		if msg.err != nil {
 			m.view = m.returnTo
-			line := firstLine(msg.out)
+			line := pacman.Reason(msg.out)
 			if line == "" {
 				line = msg.err.Error()
 			}
@@ -759,14 +759,6 @@ func categoryLabel(tr *i18n.Translator, cat string) string {
 		return label
 	}
 	return cat
-}
-
-func firstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-	}
-	return s
 }
 
 func humanSize(n int64) string {

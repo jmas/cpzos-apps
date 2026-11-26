@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jmas/cpzos-apps/internal/apps"
+	"github.com/jmas/cpzos-apps/internal/pacman"
 	"github.com/jmas/cpzos-apps/internal/tui"
 )
 
@@ -207,5 +208,19 @@ func TestUpdateConfirmCancels(t *testing.T) {
 	m = nm.(Model)
 	if m.view != viewMenu {
 		t.Fatalf("Esc in confirm -> %v", m.view)
+	}
+}
+
+func TestFailureReason(t *testing.T) {
+	cases := []struct{ out, want string }{
+		{"resolving dependencies...\nerror: failed retrieving file 'extra.db'\n", "error: failed retrieving file 'extra.db'"},
+		{"installing mc...\nerror: partition / too full: 1 blocks needed", "error: partition / too full: 1 blocks needed"},
+		{"app-install: install cpz-app-doom: failed\nresolving dependencies...", "resolving dependencies..."},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := pacman.Reason(c.out); got != c.want {
+			t.Fatalf("pacman.Reason(%q) = %q, want %q", c.out, got, c.want)
+		}
 	}
 }

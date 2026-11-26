@@ -260,7 +260,7 @@ func appsOp(action string, args []string, tr *i18n.Translator) int {
 	if *asJSON {
 		res := opJSON{Schema: 1, Action: action, Package: pkg, OK: err == nil}
 		if err != nil {
-			res.Message = firstLine(out)
+			res.Message = pacman.Reason(out)
 			if res.Message == "" {
 				res.Message = err.Error()
 			}
@@ -268,7 +268,7 @@ func appsOp(action string, args []string, tr *i18n.Translator) int {
 		return writeJSON(res, code)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", firstLineOr(out, err)))
+		fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", reasonOr(out, err)))
 		return code
 	}
 	if out != "" {
@@ -419,16 +419,8 @@ func isTTY() bool {
 	return err == nil && st.Mode()&os.ModeCharDevice != 0
 }
 
-func firstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-	}
-	return s
-}
-
-func firstLineOr(s string, err error) string {
-	if line := firstLine(s); line != "" {
+func reasonOr(out string, err error) string {
+	if line := pacman.Reason(out); line != "" {
 		return line
 	}
 	return err.Error()
