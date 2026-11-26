@@ -45,6 +45,44 @@ func TestMediaRoot(t *testing.T) {
 	}
 }
 
+func TestMediaRootDirectSystemDir(t *testing.T) {
+	home := t.TempDir()
+	usb := t.TempDir()
+	writeROM(t, filepath.Join(usb, "nes", "demo.nes"))
+	games := ScanIn(home, []string{usb})
+	if len(games) != 1 || games[0].System.ID != "nes" {
+		t.Fatalf("games = %+v", games)
+	}
+}
+
+func TestMediaRootLevelFile(t *testing.T) {
+	home := t.TempDir()
+	usb := t.TempDir()
+	writeROM(t, filepath.Join(usb, "game.gba"))
+	games := ScanIn(home, []string{usb})
+	if len(games) != 1 || games[0].System.ID != "gba" {
+		t.Fatalf("games = %+v", games)
+	}
+}
+
+func TestAutomountRoot(t *testing.T) {
+	home := t.TempDir()
+	mnt := filepath.Join(t.TempDir(), "USB")
+	if err := os.Mkdir(mnt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeROM(t, filepath.Join(mnt, "gba", "pocket.gba"))
+	state := t.TempDir()
+	if err := os.WriteFile(filepath.Join(state, "sda1.mountpoint"), []byte(mnt+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_AUTOMOUNT_STATE", state)
+	games := ScanIn(home, mediaRoots())
+	if len(games) != 1 || games[0].System.ID != "gba" {
+		t.Fatalf("games = %+v", games)
+	}
+}
+
 func TestArgv(t *testing.T) {
 	nes, _ := ByID("nes")
 	got := nes.Argv("/roms/demo.nes")

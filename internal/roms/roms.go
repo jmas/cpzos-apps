@@ -17,6 +17,7 @@ import (
 
 	"github.com/jmas/cpzos-apps/internal/i18n"
 	"github.com/jmas/cpzos-apps/internal/launch"
+	"github.com/jmas/cpzos-apps/internal/media"
 	"github.com/jmas/cpzos-apps/internal/tui"
 )
 
@@ -74,40 +75,53 @@ func Scan() []Game {
 	return ScanIn(home, mediaRoots())
 }
 
-// ScanIn is Scan with an explicit home and media roots. Tests use it.
+// ScanIn is Scan with an explicit home and media roots. Tests use it. Each
+// root is searched directly (<root>/nes) and under roms/ (<root>/roms/nes),
+// because a disk may be prepared either way.
 func ScanIn(home string, media []string) []Game {
 	roots := []string{filepath.Join(home, "roms")}
 	for _, m := range media {
-		roots = append(roots, filepath.Join(m, "roms"))
+		roots = append(roots, m, filepath.Join(m, "roms"))
 	}
 
 	seen := map[string]bool{}
 	var out []Game
+	add := func(path string, sys System) {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			abs = path
+		}
+		if seen[abs] {
+			return
+		}
+		seen[abs] = true
+		out = append(out, Game{
+			Path:   abs,
+			Name:   strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+			System: sys,
+		})
+	}
 	for _, root := range roots {
 		for _, sys := range Systems {
 			dir := filepath.Join(root, sys.ID)
 			_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return nil
+				if err == nil && !d.IsDir() && sys.matches(path) {
+					add(path, sys)
 				}
-				if !sys.matches(path) {
-					return nil
-				}
-				abs, err := filepath.Abs(path)
-				if err != nil {
-					abs = path
-				}
-				if seen[abs] {
-					return nil
-				}
-				seen[abs] = true
-				out = append(out, Game{
-					Path:   abs,
-					Name:   strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-					System: sys,
-				})
 				return nil
 			})
+		}
+		// A disk may also carry ROMs directly in its root.
+		if ents, err := os.ReadDir(root); err == nil {
+			for _, de := range ents {
+				if de.IsDir() {
+					continue
+				}
+				path := filepath.Join(root, de.Name())
+				if sys, ok := systemFor(path); ok {
+					add(path, sys)
+				}
+			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -137,6 +151,15 @@ func ForSystem(games []Game, id string) []Game {
 		}
 	}
 	return out
+}
+
+func systemFor(path string) (System, bool) {
+	for _, s := range Systems {
+		if s.matches(path) {
+			return s, true
+		}
+	}
+	return System{}, false
 }
 
 func (s System) matches(path string) bool {
@@ -191,19 +214,40 @@ func (s System) Available() bool {
 func Dir(home, id string) string { return filepath.Join(home, "roms", id) }
 
 func mediaRoots() []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(path string) {
+		if path == "" || seen[path] {
+			return
+		}
+		if st, err := os.Stat(path); err != nil || !st.IsDir() {
+			return
+		}
+		seen[path] = true
+		out = append(out, path)
+	}
+	// cpz-automount mounts under /media/<label> and records the path.
+	for _, e := range media.List() {
+		add(e.Mountpoint)
+	}
 	userName := os.Getenv("USER")
 	if userName == "" {
 		if u, err := user.Current(); err == nil {
 			userName = u.Username
 		}
 	}
-	if userName == "" {
-		return nil
+	if userName != "" {
+		for _, base := range []string{"/run/media", "/media"} {
+			matches, _ := filepath.Glob(filepath.Join(base, userName, "*"))
+			for _, m := range matches {
+				add(m)
+			}
+		}
 	}
-	var out []string
-	for _, base := range []string{"/run/media", "/media"} {
-		matches, _ := filepath.Glob(filepath.Join(base, userName, "*"))
-		out = append(out, matches...)
+	// Other applications and older images use /media/<label> directly.
+	matches, _ := filepath.Glob("/media/*")
+	for _, m := range matches {
+		add(m)
 	}
 	return out
 }
@@ -228,6 +272,8 @@ type launchDoneMsg struct {
 	err  error
 }
 
+type mediaChangedMsg struct{}
+
 // Model is the Roms screen.
 type Model struct {
 	tr     *i18n.Translator
@@ -243,8 +289,10 @@ type Model struct {
 	help   bool
 	status string
 
-	starting string
-	view     view
+	starting   string
+	view       view
+	mediaCh    <-chan struct{}
+	mediaClose func()
 }
 
 // New scans the disks and builds the screen. An empty system starts on the
@@ -264,11 +312,24 @@ func New(system string) Model {
 		m.filter = true
 		m.view = viewGames
 	}
+	m.mediaCh, m.mediaClose, _ = media.Watch()
 	m.refresh()
 	return m
 }
 
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd { return m.waitMedia() }
+
+func (m Model) waitMedia() tea.Cmd {
+	if m.mediaCh == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		if _, ok := <-m.mediaCh; !ok {
+			return nil
+		}
+		return mediaChangedMsg{}
+	}
+}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -276,6 +337,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.list.EnsureVisible(m.listRows())
 		return m, nil
+	case mediaChangedMsg:
+		m.all = Scan()
+		m.refresh()
+		return m, m.waitMedia()
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	case launchedMsg:
