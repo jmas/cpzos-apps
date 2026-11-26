@@ -1,11 +1,13 @@
 package store
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -280,7 +282,7 @@ func recordedArgs(t *testing.T, path string) string {
 
 func TestManualUpdateUpgradesSystemAndApps(t *testing.T) {
 	logPath := helperRecorder(t)
-	msg, ok := opCmd(actUpdate, "")().(opMsg)
+	msg, ok := opCmd(context.Background(), actUpdate, "")().(opMsg)
 	if !ok {
 		t.Fatal("opCmd returned a non-opMsg")
 	}
@@ -289,6 +291,59 @@ func TestManualUpdateUpgradesSystemAndApps(t *testing.T) {
 	}
 	if got, want := recordedArgs(t, logPath), "update-all\n"; got != want {
 		t.Fatalf("helper args = %q, want %q", got, want)
+	}
+}
+
+func TestCancelStopsHelper(t *testing.T) {
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "app-install")
+	if err := os.WriteFile(helper, []byte("#!/bin/sh\nsleep 10\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_APP_INSTALL", helper)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan tea.Msg, 1)
+	go func() {
+		done <- opCmd(ctx, actInstall, "demo")()
+	}()
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	select {
+	case msg := <-done:
+		op, ok := msg.(opMsg)
+		if !ok {
+			t.Fatalf("opCmd returned %T", msg)
+		}
+		if !op.cancelled {
+			t.Fatalf("helper was not marked cancelled: %+v", op)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("helper did not stop after cancel")
+	}
+}
+
+func TestWorkingEscCancels(t *testing.T) {
+	setup(t)
+	m := New()
+	m.view = viewWorking
+	m.working = "Installing…"
+	cancelled := false
+	m.cancel = func() { cancelled = true }
+
+	nm, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	m = nm.(Model)
+	if !cancelled {
+		t.Fatal("Esc did not cancel the helper")
+	}
+	if !m.cancelling || !strings.Contains(m.working, "Скасовую") {
+		t.Fatalf("cancelling state = %v, working = %q", m.cancelling, m.working)
+	}
+
+	nm, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	if nm.(Model).view != viewWorking {
+		t.Fatal("Enter left the working screen")
 	}
 }
 

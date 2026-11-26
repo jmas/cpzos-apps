@@ -16,6 +16,23 @@ func isQuit(cmd tea.Cmd) bool {
 		reflect.ValueOf(cmd).Pointer() == reflect.ValueOf(tea.Quit).Pointer()
 }
 
+func updateMsgFrom(t *testing.T, cmd tea.Cmd) updateMsg {
+	t.Helper()
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range batch {
+			if u, ok := c().(updateMsg); ok {
+				return u
+			}
+		}
+	}
+	if u, ok := msg.(updateMsg); ok {
+		return u
+	}
+	t.Fatalf("update command returned %T", msg)
+	return updateMsg{}
+}
+
 func fakeHelper(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -89,15 +106,29 @@ func TestUpdateYesRunsTheHelper(t *testing.T) {
 	if out := m.View(); !strings.Contains(out, "Оновлюю систему…") {
 		t.Fatalf("working text missing:\n%s", out)
 	}
-	msg, ok := cmd().(updateMsg)
-	if !ok {
-		t.Fatal("update command returned a non-updateMsg")
-	}
+	msg := updateMsgFrom(t, cmd)
 	if msg.err != nil {
 		t.Fatalf("update command: %v", msg.err)
 	}
 	if got, want := recordedArgs(t, logPath), "update-system\n"; got != want {
 		t.Fatalf("helper args = %q, want %q", got, want)
+	}
+}
+
+func TestUpdatingEscCancels(t *testing.T) {
+	t.Setenv("CPZ_LANG", "uk")
+	m := New()
+	m.view = viewUpdating
+	cancelled := false
+	m.cancel = func() { cancelled = true }
+
+	nm, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	m = nm.(Model)
+	if !cancelled || !m.cancelling {
+		t.Fatalf("cancelled = %v, cancelling = %v", cancelled, m.cancelling)
+	}
+	if out := m.View(); !strings.Contains(out, "Скасовую оновлення") {
+		t.Fatalf("cancelling text missing:\n%s", out)
 	}
 }
 

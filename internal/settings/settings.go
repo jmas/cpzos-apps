@@ -25,8 +25,9 @@ const (
 type aboutMsg struct{ fields []about.Field }
 
 type updateMsg struct {
-	out string
-	err error
+	out       string
+	err       error
+	cancelled bool
 }
 
 // Model is the Settings app: a system update and the read-only About screen.
@@ -36,14 +37,17 @@ type Model struct {
 	width  int
 	height int
 
-	root    tui.List
-	view    view
-	about   tui.List
-	data    []about.Field
-	ready   bool
-	help    bool
-	confirm tui.Confirm
-	status  string
+	root       tui.List
+	view       view
+	about      tui.List
+	data       []about.Field
+	ready      bool
+	help       bool
+	confirm    tui.Confirm
+	status     string
+	spinner    tui.Spinner
+	cancel     context.CancelFunc
+	cancelling bool
 }
 
 // New builds the root list.
@@ -77,8 +81,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		m.buildAbout()
 		return m, nil
+	case tui.SpinnerTickMsg:
+		if m.view == viewUpdating {
+			m.spinner.Advance()
+			return m, m.spinner.Tick()
+		}
+		return m, nil
 	case updateMsg:
 		m.view = viewRoot
+		if m.cancel != nil {
+			m.cancel()
+			m.cancel = nil
+		}
+		m.cancelling = false
+		if msg.cancelled {
+			m.status = m.tr.T("settings.cancelled")
+			return m, nil
+		}
 		if msg.err != nil {
 			line := pacman.Reason(msg.out)
 			if line == "" {
@@ -122,8 +141,15 @@ func (m Model) rows() int {
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// A package transaction cannot be cancelled safely from the UI.
 	if m.view == viewUpdating {
+		switch tui.ActionOf(msg, false) {
+		case tui.ActionBack, tui.ActionQuit:
+			if m.cancel != nil {
+				m.cancel()
+				m.cancel = nil
+				m.cancelling = true
+			}
+		}
 		return m, nil
 	}
 	if m.help {
@@ -144,7 +170,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.status = ""
 		m.view = viewUpdating
-		return m, updateCmd()
+		m.spinner = tui.Spinner{}
+		m.cancelling = false
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		m.cancel = cancel
+		return m, tea.Batch(updateCmd(ctx), m.spinner.Tick())
 	}
 	if m.status != "" {
 		m.status = ""
@@ -196,12 +226,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func updateCmd() tea.Cmd {
+func updateCmd(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
 		out, err := pacman.Run(ctx, "update-system")
-		return updateMsg{out: out, err: err}
+		return updateMsg{out: out, err: err, cancelled: ctx.Err() == context.Canceled}
 	}
 }
 
@@ -227,7 +255,12 @@ func (m Model) View() string {
 	case viewConfirm:
 		s.Body = m.confirm.Render(tui.YesNo{Yes: m.tr.T("common.yes"), No: m.tr.T("common.no")})
 	case viewUpdating:
-		s.Body = []string{m.tr.T("settings.updating")}
+		label := m.tr.T("settings.updating")
+		if m.cancelling {
+			label = m.tr.T("settings.cancelling")
+		}
+		s.Body = []string{m.spinner.Render(label)}
+		s.Status = m.tr.T("settings.cancel_hint")
 	default:
 		s.Body = m.root.Render(m.width, m.rows())
 	}

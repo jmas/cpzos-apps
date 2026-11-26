@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -53,6 +54,21 @@ func Run(ctx context.Context, verb string, extra ...string) (string, error) {
 	} else {
 		cmd = exec.CommandContext(ctx, "sudo", append([]string{"-n", path}, args...)...)
 	}
+	// The helper (and pacman below it) is a child of sudo. Put the command in
+	// its own process group so Esc can stop the whole transaction instead of
+	// leaving pacman running with the database locked.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+		if err == syscall.ESRCH {
+			return nil
+		}
+		return err
+	}
+	cmd.WaitDelay = 10 * time.Second
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
 
 	var buf bytes.Buffer

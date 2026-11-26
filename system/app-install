@@ -21,6 +21,32 @@ log() {
     command -v logger >/dev/null 2>&1 && logger -t cpz-app-install -- "$*" || true
 }
 
+# Esc in Apps Manager or Settings cancels the helper. Pacman is a child
+# process; forward the signal and wait so its lock is released before we exit.
+# A transaction interrupted mid-flight may still need a retry.
+pacman_pid=
+on_term() {
+    trap - TERM INT
+    if [ -n "$pacman_pid" ]; then
+        kill -TERM "$pacman_pid" 2>/dev/null || true
+        wait "$pacman_pid" 2>/dev/null || true
+    fi
+    exit 130
+}
+trap on_term TERM INT
+
+run_pacman() {
+    pacman "$@" &
+    pacman_pid=$!
+    if wait "$pacman_pid"; then
+        rc=0
+    else
+        rc=$?
+    fi
+    pacman_pid=
+    return "$rc"
+}
+
 [ "$(id -u)" -eq 0 ] || die "must run as root"
 [ "$#" -ge 1 ] || die "usage: app-install refresh-catalog [--force]|update-system|update-all|install <pkg>|remove <pkg>"
 
@@ -75,12 +101,12 @@ refresh_catalog() {
     # Sync databases, then install the data-only catalog package. The catalog
     # has no dependencies and installs no code, so this is the single allowed
     # -S without -u; every real install below upgrades first.
-    if ! pacman -Sy --noconfirm; then
+    if ! run_pacman -Sy --noconfirm; then
         rm -f "$marker"
         exit 1
     fi
     log "refreshing cpz-apps-catalog"
-    if ! pacman -S --needed --noconfirm cpz-apps-catalog; then
+    if ! run_pacman -S --needed --noconfirm cpz-apps-catalog; then
         rm -f "$marker"
         exit 1
     fi
@@ -91,7 +117,7 @@ full_upgrade() {
     # image build. Updating them inside a running rootfs would install modules
     # without the matching boot files, so an on-device update keeps the pinned
     # kernel and bootloader. A new kernel comes with a new image.
-    pacman -Syu --noconfirm --ignore linux-rpi --ignore raspberrypi-bootloader
+    run_pacman -Syu --noconfirm --ignore linux-rpi --ignore raspberrypi-bootloader
 }
 
 install_app() {
@@ -108,7 +134,7 @@ install_app() {
         printf 'app-install: not an app from [cpz-apps]: %s\n' "$pkg" >&2
         exit 4
     fi
-    pacman -S --needed --noconfirm -- "$pkg"
+    run_pacman -S --needed --noconfirm -- "$pkg"
 }
 
 remove_app() {
@@ -122,7 +148,7 @@ remove_app() {
         exit 4
     fi
     log "remove $pkg"
-    pacman -Rns --noconfirm -- "$pkg"
+    run_pacman -Rns --noconfirm -- "$pkg"
 }
 
 case "$1" in

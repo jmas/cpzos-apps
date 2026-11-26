@@ -52,9 +52,10 @@ type refreshMsg struct {
 }
 
 type opMsg struct {
-	kind actionKind
-	out  string
-	err  error
+	kind      actionKind
+	out       string
+	err       error
+	cancelled bool
 }
 
 type ownerMsg struct {
@@ -93,13 +94,16 @@ type Model struct {
 	help   bool
 	status string
 
-	view     view
-	detail   apps.App
-	actions  tui.List
-	confirm  tui.Confirm
-	pending  actionKind
-	working  string
-	returnTo view
+	view       view
+	detail     apps.App
+	actions    tui.List
+	confirm    tui.Confirm
+	pending    actionKind
+	working    string
+	spinner    tui.Spinner
+	cancel     context.CancelFunc
+	cancelling bool
+	returnTo   view
 
 	// A graphical app owns the tab while it starts. Refuse another launch
 	// until it exits; the list behind it stays live but cannot spawn a second
@@ -372,10 +376,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.buildActions()
 		}
 		return m, nil
+	case tui.SpinnerTickMsg:
+		if m.view == viewWorking {
+			m.spinner.Advance()
+			return m, m.spinner.Tick()
+		}
+		return m, nil
 	case opMsg:
 		id := m.detail.ID
+		if m.cancel != nil {
+			m.cancel()
+			m.cancel = nil
+		}
 		m.reload()
 		m.working = ""
+		m.cancelling = false
+		if msg.cancelled {
+			m.view = m.returnTo
+			m.status = m.tr.T("apps.status.cancelled")
+			return m, nil
+		}
 		if msg.err != nil {
 			m.view = m.returnTo
 			line := pacman.Reason(msg.out)
@@ -415,6 +435,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.view == viewWorking {
+		switch tui.ActionOf(msg, false) {
+		case tui.ActionBack, tui.ActionQuit:
+			if m.cancel != nil {
+				m.cancel()
+				m.cancel = nil
+				m.cancelling = true
+				m.working = m.tr.T("apps.status.cancelling")
+			}
+		}
 		return m, nil
 	}
 	if m.help {
@@ -671,6 +700,9 @@ func (m Model) handleConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	kind := m.pending
 	m.view = viewWorking
 	m.pending = actNone
+	m.status = ""
+	m.spinner = tui.Spinner{}
+	m.cancelling = false
 	switch kind {
 	case actUpdate:
 		m.working = m.tr.T("apps.status.refreshing")
@@ -679,19 +711,19 @@ func (m Model) handleConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case actRemove:
 		m.working = m.tr.T("apps.status.removing", "name", m.detail.Name)
 	}
-	return m, opCmd(kind, m.detail.Package)
+	timeout := 10 * time.Minute
+	if kind == actUpdate {
+		// A full upgrade on the device can take longer than one app
+		// install; the helper keeps the kernel and bootloader pinned.
+		timeout = 30 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	m.cancel = cancel
+	return m, tea.Batch(opCmd(ctx, kind, m.detail.Package), m.spinner.Tick())
 }
 
-func opCmd(kind actionKind, pkg string) tea.Cmd {
+func opCmd(ctx context.Context, kind actionKind, pkg string) tea.Cmd {
 	return func() tea.Msg {
-		timeout := 10 * time.Minute
-		if kind == actUpdate {
-			// A full upgrade on the device can take longer than one app
-			// install; the helper keeps the kernel and bootloader pinned.
-			timeout = 30 * time.Minute
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
 		verb := ""
 		switch kind {
 		case actInstall:
@@ -704,13 +736,13 @@ func opCmd(kind actionKind, pkg string) tea.Cmd {
 			// installed apps, then refresh the catalog. The helper bypasses
 			// the automatic 10-minute catalog rate limit.
 			out, err := pacman.Run(ctx, "update-all")
-			return opMsg{kind: kind, out: out, err: err}
+			return opMsg{kind: kind, out: out, err: err, cancelled: ctx.Err() == context.Canceled}
 		}
 		if verb == "" {
 			return opMsg{kind: actNone}
 		}
 		out, err := pacman.Run(ctx, verb, pkg)
-		return opMsg{kind: kind, out: out, err: err}
+		return opMsg{kind: kind, out: out, err: err, cancelled: ctx.Err() == context.Canceled}
 	}
 }
 
@@ -737,7 +769,8 @@ func (m Model) View() string {
 	case viewConfirm:
 		s.Body = m.confirm.Render(tui.YesNo{Yes: m.tr.T("common.yes"), No: m.tr.T("common.no")})
 	case viewWorking:
-		s.Body = []string{m.working}
+		s.Body = []string{m.spinner.Render(m.working)}
+		s.Status = m.tr.T("apps.status.cancel_hint")
 	case viewCategory:
 		label := categoryLabel(m.tr, m.category)
 		if m.category == catInstalled {

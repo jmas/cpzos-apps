@@ -1,3 +1,4 @@
 # Allow the session user to run only the CPZ package helper. The helper
 # validates its own arguments; no wildcard is needed.
+Defaults!/usr/lib/cpz/app-install !use_pty
 cpz ALL=(root) NOPASSWD: /usr/lib/cpz/app-install

@@ -81,6 +81,11 @@ entry is limited to one attempt per 10 minutes and updates the catalog alone.
 Settings → **Update system** upgrades the system and apps but does not force
 the catalog reinstall.
 
+While a package operation runs, Apps Manager and Settings lock the screen and
+show an ASCII spinner. All keys are ignored except `Esc` (or `Ctrl+C`), which
+asks the helper to stop pacman. A transaction interrupted in the middle may
+need to be retried; the next update repairs the package database.
+
 ## Build
 
 ```sh
