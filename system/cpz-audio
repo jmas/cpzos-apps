@@ -1,0 +1,56 @@
+#!/bin/sh
+# Configure the onboard ES8389 codec for the internal speaker.
+#
+# The stock image lets PipeWire/WirePlumber connect the speaker amplifier and
+# apply a desktop volume. This image runs ALSA directly, so the DAPM speaker
+# pin switch and the DAC level have to be set explicitly; otherwise ALSA-only
+# clients (Mednafen, mGBA) open the right PCM but stay silent behind a
+# disconnected amplifier. Installed by cpz-system-apps and called by both the
+# session and cpz-app, so an app-only update also fixes sound.
+set -eu
+
+card_id=${CPZ_AUDIO_CARD:-ES8389Audio}
+
+say() {
+    printf 'cpz-audio: %s\n' "$*" >&2
+    command -v logger >/dev/null 2>&1 && logger -t cpz-audio -- "$*" || true
+}
+
+# amixer -c takes a card index, not an id. Resolve it from the proc table and
+# fall back to any card whose id mentions the codec, so a kernel rename does
+# not make the helper operate on the HDMI card.
+card_index() {
+    idx=$(sed -n "s/^ *\\([0-9][0-9]*\\) \\[$card_id *\\].*/\\1/p" \
+        /proc/asound/cards 2>/dev/null | head -n 1)
+    if [ -z "$idx" ]; then
+        idx=$(sed -n 's/^ *\([0-9][0-9]*\) \[[^]]*ES8389[^]]*\].*/\1/p' \
+            /proc/asound/cards 2>/dev/null | head -n 1)
+    fi
+    printf '%s' "$idx"
+}
+
+# The vendor codec module autoloads from the DT overlay; give it a moment.
+i=0
+while [ "$i" -lt 10 ]; do
+    idx=$(card_index)
+    [ -n "$idx" ] && break
+    i=$((i + 1))
+    sleep 0.1
+done
+if [ -z "${idx:-}" ]; then
+    say "card $card_id not found"
+    exit 0
+fi
+
+# 164 = -13.5 dB on the ES8389's 0.5 dB scale. That is the same level as the
+# stock image's -13.4 dB default: audible on the 1 W speaker without clipping.
+amixer -q -c "$idx" sset 'DACL Playback Volume' 164 >/dev/null 2>&1 ||
+    say "cannot set DACL playback volume"
+amixer -q -c "$idx" sset 'DACR Playback Volume' 164 >/dev/null 2>&1 ||
+    say "cannot set DACR playback volume"
+
+# GPIO24 gates the 1 W speaker through a DAPM pin switch. A desktop mixer
+# normally connects it; ALSA-only sessions must do it themselves.
+amixer -q -c "$idx" sset 'Speaker Switch' on >/dev/null 2>&1 ||
+    say "cannot enable the speaker switch"
+

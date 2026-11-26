@@ -203,7 +203,7 @@ func (s System) Argv(path string) []string {
 
 // Env is the SDL environment used by both emulators.
 func Env() []string {
-	return []string{"SDL_VIDEODRIVER=wayland", "SDL_AUDIODRIVER=alsa"}
+	return []string{"SDL_VIDEODRIVER=wayland", "SDL_AUDIODRIVER=alsa", "SDL_RENDER_DRIVER=software"}
 }
 
 // Available reports whether the emulator for the system is installed.

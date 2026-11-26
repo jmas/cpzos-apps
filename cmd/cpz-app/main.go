@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -40,11 +41,24 @@ func main() {
 	os.Exit(run(os.Args[1:]))
 }
 
+// configureAudio connects the ES8389 speaker amplifier. cpz-session does this
+// at session start, but an app update on an older image must also make the
+// emulators audible without a reboot.
+func configureAudio() {
+	if _, err := os.Stat("/usr/lib/cpz/audio"); err != nil {
+		return
+	}
+	_ = exec.Command("/usr/lib/cpz/audio").Run()
+}
+
 func run(args []string) int {
 	tr := i18n.For(i18n.System())
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
 		return exitUsage
+	}
+	if args[0] != "version" {
+		configureAudio()
 	}
 	switch args[0] {
 	case "home":
@@ -82,7 +96,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.4.1")
+		fmt.Println("cpz-app 0.4.2")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))

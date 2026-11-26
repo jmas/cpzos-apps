@@ -1,13 +1,13 @@
 # Maintainer: CPZ <cpz-ui@jmas.github.io>
 
 pkgname=cpz-system-apps
-pkgver=0.4.1
+pkgver=0.4.2
 pkgrel=1
 pkgdesc="CPZ system apps: Home, Apps Manager, Settings, Terminal and the package helper"
 arch=('aarch64')
 url="https://github.com/jmas/cpzos-apps"
 license=('BSD-3-Clause')
-depends=('cpz-apps-catalog')
+depends=('cpz-apps-catalog' 'alsa-utils')
 makedepends=('go')
 options=('!strip')
 backup=('etc/cpz/open-with.conf')
@@ -52,4 +52,6 @@ package() {
         "$pkgdir/usr/share/cpz/emulators/mednafen.cfg"
     install -Dm644 "$startdir/../../system/open-with.conf" \
         "$pkgdir/etc/cpz/open-with.conf"
+    install -Dm755 "$startdir/../../system/cpz-audio" \
+        "$pkgdir/usr/lib/cpz/audio"
 }
