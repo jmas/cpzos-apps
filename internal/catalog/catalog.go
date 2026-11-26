@@ -68,7 +68,7 @@ func Load(path string) (*Index, error) {
 		return nil, fmt.Errorf("catalog: %w", err)
 	}
 	if idx.Version != 1 {
-		// A newer schema is ignored: Apps Manager falls back to installed apps.
+		// A newer schema is ignored: Applications falls back to installed apps.
 		return empty, nil
 	}
 	return &idx, nil

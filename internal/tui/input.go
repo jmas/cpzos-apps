@@ -13,6 +13,7 @@ type Input struct {
 	Prompt string
 	Value  string
 	Active bool
+	Secret bool
 }
 
 // Handle processes a key while the field has focus.
@@ -55,8 +56,12 @@ func (i *Input) Clear() { i.Value = "" }
 
 // Render draws the field on one line.
 func (i *Input) Render(width int) string {
-	text := i.Prompt + ": " + i.Value
-	if i.Value == "" {
+	value := i.Value
+	if i.Secret {
+		value = strings.Repeat("*", len([]rune(value)))
+	}
+	text := i.Prompt + ": " + value
+	if value == "" {
 		text = i.Prompt + ":"
 	}
 	if i.Active {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -123,7 +124,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.4.6")
+		fmt.Println("cpz-app 0.5.7")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
@@ -512,6 +513,20 @@ func runSettings(args []string, tr *i18n.Translator) int {
 		return settingsAbout(args[1:], tr)
 	case "update":
 		return settingsUpdate(args[1:], tr)
+	case "language":
+		return settingsLanguage(args[1:], tr)
+	case "brightness":
+		return settingsBrightness(args[1:], tr)
+	case "reboot":
+		return settingsPower("reboot", args[1:], tr)
+	case "poweroff":
+		return settingsPower("off", args[1:], tr)
+	case "wifi":
+		return settingsRadio("wifi", args[1:], tr)
+	case "bt":
+		return settingsRadio("bt", args[1:], tr)
+	case "output":
+		return settingsOutput(args[1:], tr)
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
 		return exitUsage
@@ -595,7 +610,250 @@ func settingsUpdate(args []string, tr *i18n.Translator) int {
 	return exitOK
 }
 
+// --- settings (continued) ------------------------------------------------
+
+type languageJSON struct {
+	Schema   int    `json:"schema"`
+	Language string `json:"language"`
+}
+
+type brightnessJSON struct {
+	Schema     int `json:"schema"`
+	Brightness int `json:"brightness"`
+}
+
+func settingsLanguage(args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet("language", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(reorder(args, nil)); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() > 1 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if fs.NArg() == 0 {
+		lang := i18n.System()
+		if *asJSON {
+			return writeJSON(languageJSON{Schema: 1, Language: lang}, exitOK)
+		}
+		fmt.Println(lang)
+		return exitOK
+	}
+	code := i18n.Normalize(fs.Arg(0))
+	if code == "" {
+		fmt.Fprintln(os.Stderr, tr.T("settings.language_failed", "error", fs.Arg(0)))
+		return exitUsage
+	}
+	if err := settings.SetLanguage(code); err != nil {
+		if *asJSON {
+			return writeJSON(map[string]any{"schema": 1, "ok": false, "message": err.Error()}, exitFailed)
+		}
+		fmt.Fprintln(os.Stderr, tr.T("settings.language_failed", "error", err.Error()))
+		return exitFailed
+	}
+	if *asJSON {
+		return writeJSON(languageJSON{Schema: 1, Language: code}, exitOK)
+	}
+	fmt.Println(code)
+	return exitOK
+}
+
+func settingsBrightness(args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet("brightness", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(reorder(args, nil)); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() > 1 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if fs.NArg() == 0 {
+		value := settings.Brightness()
+		if *asJSON {
+			return writeJSON(brightnessJSON{Schema: 1, Brightness: value}, exitOK)
+		}
+		fmt.Println(value)
+		return exitOK
+	}
+	value, err := strconv.Atoi(fs.Arg(0))
+	if err != nil || value < 0 || value > 100 || value%10 != 0 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if err := settings.SetBrightness(value); err != nil {
+		if *asJSON {
+			return writeJSON(map[string]any{"schema": 1, "ok": false, "message": err.Error()}, exitFailed)
+		}
+		fmt.Fprintln(os.Stderr, tr.T("settings.brightness_failed", "error", err.Error()))
+		return exitFailed
+	}
+	if *asJSON {
+		return writeJSON(brightnessJSON{Schema: 1, Brightness: value}, exitOK)
+	}
+	fmt.Printf("%d%%\n", value)
+	return exitOK
+}
+
+func settingsPower(action string, args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet(action, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	yes := fs.Bool("yes", false, "skip the confirmation")
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(reorder(args, nil)); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if !*yes {
+		if !isTTY() || *asJSON {
+			fmt.Fprintln(os.Stderr, tr.T("cli.needs_yes"))
+			return exitConfirm
+		}
+		question := "settings.confirm.restart"
+		if action == "off" {
+			question = "settings.confirm.poweroff"
+		}
+		fmt.Fprintf(os.Stderr, "%s ", tr.T(question))
+		var answer string
+		fmt.Scanln(&answer)
+		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
+			fmt.Fprintln(os.Stderr, tr.T("cli.cancelled"))
+			return exitOK
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, err := pacman.Run(ctx, "power", action)
+	code := exitOK
+	if err != nil {
+		code = mapExit(pacman.Kind(err))
+	}
+	if *asJSON {
+		res := opJSON{Schema: 1, Action: action, OK: err == nil}
+		if err != nil {
+			res.Message = reasonOr(out, err)
+		}
+		return writeJSON(res, code)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("settings.power_failed", "error", reasonOr(out, err)))
+		return code
+	}
+	if action == "reboot" {
+		fmt.Println(tr.T("settings.restarting"))
+	} else {
+		fmt.Println(tr.T("settings.powering_off"))
+	}
+	return exitOK
+}
+
 // --- helpers -------------------------------------------------------------
+
+type radioJSON struct {
+	Schema  int    `json:"schema"`
+	Radio   string `json:"radio"`
+	State   string `json:"state,omitempty"`
+	OK      bool   `json:"ok"`
+	Message string `json:"message,omitempty"`
+}
+
+func settingsOutput(args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet("output", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(reorder(args, nil)); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() > 1 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if fs.NArg() == 0 {
+		value := settings.Output()
+		if *asJSON {
+			return writeJSON(map[string]any{"schema": 1, "output": value}, exitOK)
+		}
+		fmt.Println(value)
+		return exitOK
+	}
+	value := fs.Arg(0)
+	if value != "auto" && value != "panel" && value != "hdmi" {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if err := settings.SetOutput(value); err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("settings.display.failed", "error", err.Error()))
+		return exitFailed
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, err := pacman.Run(ctx, "display", "apply")
+	code := exitOK
+	if err != nil {
+		code = mapExit(pacman.Kind(err))
+	}
+	if *asJSON {
+		res := map[string]any{"schema": 1, "output": value, "ok": err == nil}
+		if err != nil {
+			res["message"] = reasonOr(out, err)
+		}
+		return writeJSON(res, code)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("settings.display.failed", "error", reasonOr(out, err)))
+		return code
+	}
+	fmt.Println(value)
+	return exitOK
+}
+
+func settingsRadio(id string, args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet(id, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(reorder(args, nil)); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	action := fs.Arg(0)
+	switch action {
+	case "on", "off", "status":
+	default:
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	out, err := pacman.Run(ctx, id, action)
+	code := exitOK
+	if err != nil {
+		code = mapExit(pacman.Kind(err))
+	}
+	if *asJSON {
+		res := radioJSON{Schema: 1, Radio: id, State: action, OK: err == nil}
+		if err != nil {
+			res.Message = reasonOr(out, err)
+		}
+		return writeJSON(res, code)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("settings.network.failed", "error", reasonOr(out, err)))
+		return code
+	}
+	if action == "status" {
+		fmt.Println(strings.TrimSpace(out))
+	}
+	return exitOK
+}
 
 func writeJSON(v any, code int) int {
 	b, err := json.MarshalIndent(v, "", "  ")

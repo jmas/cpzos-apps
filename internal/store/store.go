@@ -75,7 +75,7 @@ type launchDoneMsg struct {
 	err  error
 }
 
-// Model is Apps Manager.
+// Model is Applications.
 type Model struct {
 	lang   string
 	tr     *i18n.Translator

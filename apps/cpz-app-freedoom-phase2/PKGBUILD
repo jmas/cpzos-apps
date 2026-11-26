@@ -1,7 +1,7 @@
 # Maintainer: CPZ <cpz-ui@jmas.github.io>
 #
 # Freedoom Phase 2 is the Doom II-compatible free game. It is a separate
-# package so Apps Manager can install and remove it on its own.
+# package so Applications can install and remove it on its own.
 
 pkgname=cpz-app-freedoom-phase2
 pkgver=1.0.0

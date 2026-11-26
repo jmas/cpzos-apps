@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Apps Manager
-Name[uk]=Менеджер додатків
+Name=Applications
+Name[uk]=Застосунки
 Comment=Install, remove and open apps
 Comment[uk]=Встановлення, видалення та запуск додатків
 Exec=/usr/bin/cpz-app apps

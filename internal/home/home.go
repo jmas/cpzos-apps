@@ -97,7 +97,7 @@ func New() Model {
 	kept := all[:0]
 	for _, a := range all {
 		// Home shows what the system really has: a catalog record alone is an
-		// app that is not installed yet. Installing is Apps Manager's job, so
+		// app that is not installed yet. Installing is the Applications screen's job, so
 		// a user never lands on an app that cannot start.
 		if !a.Installed || a.ID == ownID {
 			continue

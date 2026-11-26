@@ -1,11 +1,15 @@
 #!/bin/sh
-# CPZ package helper. The only privileged entry point for Apps Manager.
+# CPZ package helper. The only privileged entry point for Applications.
 #
 #   app-install refresh-catalog [--force]
 #   app-install update-system
 #   app-install update-all
 #   app-install install <package>
 #   app-install remove  <package>
+#   app-install power reboot|off
+#   app-install wifi on|off|status
+#   app-install bt   on|off|status
+#   app-install display apply
 #
 # Installed by cpz-system-apps; sudoers allows user cpz to run this file only.
 set -eu
@@ -21,7 +25,7 @@ log() {
     command -v logger >/dev/null 2>&1 && logger -t cpz-app-install -- "$*" || true
 }
 
-# Esc in Apps Manager or Settings cancels the helper. Pacman is a child
+# Esc in Applications or Settings cancels the helper. Pacman is a child
 # process; forward the signal and wait so its lock is released before we exit.
 # A transaction interrupted mid-flight may still need a retry.
 pacman_pid=
@@ -48,7 +52,7 @@ run_pacman() {
 }
 
 [ "$(id -u)" -eq 0 ] || die "must run as root"
-[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog [--force]|update-system|update-all|install <pkg>|remove <pkg>"
+[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog [--force]|update-system|update-all|install <pkg>|remove <pkg>|power reboot|off|wifi on|off|status|bt on|off|status|display apply"
 
 case "$1" in
     refresh-catalog)
@@ -67,6 +71,24 @@ case "$1" in
         [ "$#" -eq 2 ] || die "$1 takes exactly one package"
         printf '%s' "$2" | grep -Eq '^[a-z0-9][a-z0-9@._+-]*$' ||
             die "invalid package name: $2"
+        ;;
+    power)
+        [ "$#" -eq 2 ] || die "power takes reboot|off"
+        case "$2" in
+            reboot|off) ;;
+            *) die "invalid power action: $2" ;;
+        esac
+        ;;
+    wifi|bt)
+        [ "$#" -eq 2 ] || die "$1 takes on|off|status"
+        case "$2" in
+            on|off|status) ;;
+            *) die "invalid $1 action: $2" ;;
+        esac
+        ;;
+    display)
+        [ "$#" -eq 2 ] || die "display takes apply"
+        [ "$2" = "apply" ] || die "invalid display action: $2"
         ;;
     *)
         die "unknown action: $1"
@@ -169,5 +191,37 @@ case "$1" in
         ;;
     remove)
         remove_app "$2"
+        ;;
+    power)
+        log "power $2"
+        case "$2" in
+            reboot) systemctl reboot ;;
+            off) systemctl poweroff ;;
+        esac
+        ;;
+    display)
+        log "display $2"
+        systemctl restart cpz-ui@tty1.service
+        ;;
+    wifi|bt)
+        unit=iwd
+        [ "$1" = "bt" ] && unit=bluetooth
+        case "$2" in
+            on)
+                log "$1 on"
+                systemctl enable --now "$unit"
+                ;;
+            off)
+                log "$1 off"
+                systemctl disable --now "$unit"
+                ;;
+            status)
+                if systemctl is-active --quiet "$unit"; then
+                    printf 'on\n'
+                else
+                    printf 'off\n'
+                fi
+                ;;
+        esac
         ;;
 esac

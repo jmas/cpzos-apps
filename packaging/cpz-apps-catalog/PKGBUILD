@@ -6,7 +6,7 @@
 pkgname=cpz-apps-catalog
 pkgver=${CATALOG_VERSION:-0.1.0}
 pkgrel=1
-pkgdesc="CPZ application catalog for Apps Manager"
+pkgdesc="CPZ application catalog for Applications"
 arch=('any')
 url="https://github.com/jmas/cpzos-apps"
 license=('CC0-1.0')

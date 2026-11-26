@@ -5,18 +5,18 @@ This repository is the source of the signed `[cpz-apps]` pacman repository;
 it is not part of the base image.
 
 ```text
-cpz-system-apps     Home, Apps Manager, Settings, Terminal
+cpz-system-apps     Home, Applications, Settings, Terminal
 cpz-apps-catalog    data-only catalog of available apps (apps.json)
 cpz-app-<name>      applications; each installs desktop entries
 ```
 
 The base image trust root is the existing CPZ UI signing key. The UI image
-bakes the current catalog at build time; Apps Manager refreshes it in the
+bakes the current catalog at build time; Applications refreshes it in the
 background through a narrow helper.
 
 ## System apps
 
-Home, Apps Manager and Settings are one binary on the shared `internal/tui`
+Home, Applications and Settings are one binary on the shared `internal/tui`
 kit; Terminal is a desktop entry that starts a login shell. Roms is an optional
 catalog entry that uses the same binary and is installed only when the user
 asks for it. Home and the catalog list only the system apps and installed apps
@@ -33,8 +33,8 @@ not apps. The TUI screens follow the binding rules in
 
 ```sh
 cpz-app home       # new tab: choose an app
-cpz-app apps       # Apps Manager
-cpz-app settings   # Settings: update system and About
+cpz-app apps       # Applications
+cpz-app settings   # Settings: language, display, power, update and About
 cpz-app roms [--system S]  # ROM list for NES/SNES/Genesis/GB/GBA
 cpz-app run FILE NAME  # internal: run an argv file and return to Home
 cpz-app exec FILE      # internal: run an argv file (tmux-safe, no shell)
@@ -43,7 +43,7 @@ cpz-app exec FILE      # internal: run an argv file (tmux-safe, no shell)
 The `run` supervisor is what makes quitting an app land back on Home instead
 of an empty tab. It has no input loop, so the app owns the terminal.
 
-Home and Apps Manager show `Starting <name>…` while a graphical app (Freedoom,
+Home and Applications show `Starting <name>…` while a graphical app (Freedoom,
 for example) is loading and replace it with the failure reason if the child
 exits non-zero, so a slow launch never looks like a dead key. A graphical
 entry is single-instance across tabs: the same tab refuses a second launch
@@ -64,6 +64,9 @@ cpz-app apps remove  <package|desktop-id> [--yes] [--json]
 cpz-app apps update  [--yes] [--json]
 cpz-app settings about  [--json]
 cpz-app settings update [--yes] [--json]
+cpz-app settings language [en|uk] [--json]
+cpz-app settings brightness [0|10..100] [--json]
+cpz-app settings reboot|poweroff [--yes] [--json]
 ```
 
 Exit codes: 0 ok, 1 failed, 2 usage, 3 needs `--yes`, 4 unknown app,
@@ -75,7 +78,7 @@ the catalog. The helper ignores `linux-rpi` and `raspberrypi-bootloader`: the
 boot files are generated into the FAT partition by the image build, so a new
 kernel or bootloader needs a new image, not an in-place transaction.
 
-`apps update` and the Apps Manager **Update list and apps** row run a full
+`apps update` and the Applications **Update list and apps** row run a full
 `pacman -Syu` (the kernel and bootloader stay pinned), then force-refresh the
 catalog. Installed apps and the system apps move to the versions in
 `[cpz-apps]`, and new catalog entries appear. Only the automatic refresh on
@@ -83,7 +86,7 @@ entry is limited to one attempt per 10 minutes and updates the catalog alone.
 Settings → **Update system** upgrades the system and apps but does not force
 the catalog reinstall.
 
-While a package operation runs, Apps Manager and Settings lock the screen and
+While a package operation runs, Applications and Settings lock the screen and
 show an ASCII spinner. All keys are ignored except `Esc` (or `Ctrl+C`), which
 asks the helper to stop pacman. A transaction interrupted in the middle may
 need to be retried; the next update repairs the package database.
@@ -147,7 +150,7 @@ Publishing rules:
 - a `file://` test image is a snapshot, not the release: App Manager cannot see
   a newer release until the image is rebuilt or `/opt/cpz/apps-repo` is
   replaced;
-- Apps Manager shows available apps in the catalog; Home shows only installed
+- Applications shows available apps in the catalog; Home shows only installed
   apps. A newly published app appears under Games as available and must be
   installed.
 
@@ -155,12 +158,12 @@ Publishing rules:
 
 `apps/cpz-app-mc` wraps the Arch `mc` package: it installs only a desktop
 entry and depends on `mc`. The catalog lists it as available; installing it
-through Apps Manager pulls `mc` from the Arch repositories. Removing it removes
+through Applications pulls `mc` from the Arch repositories. Removing it removes
 the entry and, if nothing else needs it, `mc`.
 
 ## Games
 
-Every game is its own package, so Apps Manager installs and removes one game
+Every game is its own package, so Applications installs and removes one game
 at a time. The Freedoom entries use the `doomretro` engine and ship only free
 Freedoom data:
 
@@ -205,7 +208,7 @@ game that actually starts, not its engine. The Freedoom packages are why
 
 It also scans the `cpz-automount` state, `/media/*`, `<mount>/<system>`,
 `<mount>/roms/<system>` and root-level ROM files. The optional **Roms** app
-shows every system and must be installed from Apps Manager; the catalog entries
+shows every system and must be installed from Applications; the catalog entries
 **NES**, **SNES**, **Sega Genesis**, **Game Boy** and **Game Boy Advance**
 install the matching emulator and open the list filtered to that system.
 
@@ -257,7 +260,7 @@ internal/apps/          XDG discovery, desktop parsing, merge
 internal/pacman/        read-only queries and the helper client
 internal/launch/        argv expansion, tmux tab, window replacement
 internal/home/          new-tab launcher
-internal/store/         Apps Manager
+internal/store/         Applications
 internal/settings/      Settings and About
 internal/about/         system facts for About
 system/                 desktop entries, helper, sudoers, protected list
