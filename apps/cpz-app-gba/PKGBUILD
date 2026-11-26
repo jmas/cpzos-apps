@@ -1,0 +1,18 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-app-gba
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Game Boy Advance emulator entry for CPZ Games"
+arch=('any')
+url="https://mgba.io/"
+license=('MPL-2.0')
+depends=('cpz-system-apps>=0.2.0' 'cpz-mgba')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-gba.desktop" \
+        "$pkgdir/usr/share/applications/cpz-gba.desktop"
+}

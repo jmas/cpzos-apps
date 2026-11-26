@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Game Boy
+Name[uk]=Game Boy
+Comment=Game Boy and Game Boy Color emulator
+Comment[uk]=Емулятор Game Boy і Game Boy Color
+Exec=/usr/bin/cpz-app roms --system gb
+Terminal=true
+Categories=Game;Emulator;
+Keywords=gb;gbc;emulator;rom;
+Keywords[uk]=gb;gbc;емулятор;rom;
+Icon=applications-games
+X-CPZ-Contract=1

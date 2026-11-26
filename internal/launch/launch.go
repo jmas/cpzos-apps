@@ -42,6 +42,7 @@ type Spec struct {
 	ID       string
 	Path     string
 	Terminal bool
+	Env      []string
 }
 
 // FromEntry expands Exec for the CPZ session.
@@ -206,7 +207,7 @@ func Start(spec Spec) (*Process, error) {
 	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
 	cmd.Stdin = nil
 	cmd.Stdout, cmd.Stderr = logFile, logFile
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), spec.Env...)
 	if lock != nil {
 		cmd.ExtraFiles = []*os.File{lock.file}
 	}

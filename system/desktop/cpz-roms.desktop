@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Roms
+Name[uk]=ROM-и
+Comment=Play ROMs from ~/roms and mounted USB sticks
+Comment[uk]=Грати ROM-и з ~/roms і підключених USB-носіїв
+Exec=/usr/bin/cpz-app roms
+Terminal=true
+Categories=Game;Emulator;
+Keywords=rom;emulator;gba;gbc;gb;nes;snes;genesis;
+Keywords[uk]=rom;емулятор;gba;gbc;gb;nes;snes;genesis;
+Icon=applications-games
+X-CPZ-System=true
+X-CPZ-Contract=1

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Sega Genesis
+Name[uk]=Sega Genesis
+Comment=Sega Genesis / Mega Drive emulator
+Comment[uk]=Емулятор Sega Genesis / Mega Drive
+Exec=/usr/bin/cpz-app roms --system genesis
+Terminal=true
+Categories=Game;Emulator;
+Keywords=genesis;mega drive;megadrive;emulator;rom;
+Keywords[uk]=genesis;mega drive;megadrive;емулятор;rom;
+Icon=applications-games
+X-CPZ-Contract=1

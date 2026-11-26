@@ -5,7 +5,7 @@ This repository is the source of the signed `[cpz-apps]` pacman repository;
 it is not part of the base image.
 
 ```text
-cpz-system-apps     Home, Apps Manager, Settings, Terminal
+cpz-system-apps     Home, Apps Manager, Settings, Roms, Terminal
 cpz-apps-catalog    data-only catalog of available apps (apps.json)
 cpz-app-<name>      applications; each installs desktop entries
 ```
@@ -16,11 +16,12 @@ background through a narrow helper.
 
 ## System apps
 
-Home, Apps Manager and Settings are one binary on the shared `internal/tui`
-kit; Terminal is a desktop entry that starts a login shell. Home and the
-catalog list only the system apps and installed apps that come from the
-catalog; unrelated desktop entries shipped by the session (foot, help) are not
-apps. All four follow the binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
+Home, Apps Manager, Settings and Roms are one binary on the shared
+`internal/tui` kit; Terminal is a desktop entry that starts a login shell. Home
+and the catalog list only the system apps and installed apps that come from
+the catalog; unrelated desktop entries shipped by the session (foot, help) are
+not apps. Home, Apps Manager, Settings and Roms follow the binding rules in
+`cpz-arch/docs/TUI-CONTRACT.md`:
 
 - plain `F` / `X` / `Z` / `C` navigation (no Fn), arrows, `Enter`, `Esc`;
 - 40×10 minimum layout, one focus bar, no borders, no footer;
@@ -32,6 +33,7 @@ apps. All four follow the binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
 cpz-app home       # new tab: choose an app
 cpz-app apps       # Apps Manager
 cpz-app settings   # Settings: update system and About
+cpz-app roms [--system S]  # ROM list for NES/SNES/Genesis/GB/GBA
 cpz-app run FILE NAME  # internal: run an argv file and return to Home
 cpz-app exec FILE      # internal: run an argv file (tmux-safe, no shell)
 ```
@@ -166,6 +168,30 @@ add an entry that cannot be played on it.
 The catalog name rule is in `CONTRIBUTING.md`: the entry is named after the
 game that actually starts, not its engine. The Freedoom packages are why
 `cpz-app-freedoom-phase1` replaces the old `cpz-app-doom` package.
+
+## Roms
+
+`cpz-app roms` lists ROMs under:
+
+```text
+~/roms/nes/
+~/roms/snes/
+~/roms/genesis/
+~/roms/gb/
+~/roms/gba/
+```
+
+It also scans `/run/media/$USER/*/roms/<system>` and
+`/media/$USER/*/roms/<system>` for USB sticks. The **Roms** system entry shows
+every system; the catalog entries **NES**, **SNES**, **Sega Genesis**,
+**Game Boy** and **Game Boy Advance** install the matching emulator and open
+the list filtered to that system.
+
+Mednafen handles NES, SNES and Genesis; `cpz-mgba` is a minimal mGBA build for
+Game Boy, Game Boy Color and Game Boy Advance. No ROMs or BIOS files are
+shipped. Mednafen uses `WASD`, `J`/`K`/`L`, `U`/`I`, `Enter`/`Backspace`;
+mGBA keeps its `X`/`Z`/`A`/`S`, `Enter`/`Backspace` defaults. Both avoid the
+Fn layer.
 
 ## Curation
 

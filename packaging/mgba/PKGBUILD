@@ -1,0 +1,58 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+#
+# Minimal mGBA SDL frontend for the Cardputer Zero. The Arch/ALARM package
+# enables ffmpeg, libzip, sqlite, the debugger and Qt; none of that is needed
+# to play GBA/GB/GBC, and ffmpeg alone is far too large for this image. This
+# build keeps SDL2, zlib and PNG and drops the rest.
+#
+# The binary provides mgba-sdl/libmgba so an existing ALARM installation is
+# replaced cleanly.
+
+pkgname=cpz-mgba
+pkgver=0.10.5
+pkgrel=1
+pkgdesc="Minimal mGBA SDL frontend for CPZ Games"
+arch=('aarch64')
+url="https://mgba.io/"
+license=('MPL-2.0')
+depends=('sdl2' 'zlib' 'libpng' 'mesa')
+makedepends=('cmake' 'sdl2' 'zlib' 'libpng' 'mesa' 'base-devel')
+provides=('mgba-sdl' 'libmgba')
+conflicts=('mgba-sdl' 'libmgba')
+options=('!strip')
+source=("mgba-$pkgver.tar.gz::https://github.com/mgba-emu/mgba/archive/refs/tags/$pkgver.tar.gz")
+sha256sums=('91d6fbd32abcbdf030d58d3f562de25ebbc9d56040d513ff8e5c19bee9dacf14')
+
+build() {
+    cmake -S "$srcdir/mgba-$pkgver" -B build \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DCMAKE_BUILD_TYPE=MinSizeRel \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_QT=OFF \
+        -DBUILD_SDL=ON \
+        -DUSE_DEBUGGERS=OFF \
+        -DUSE_EDITLINE=OFF \
+        -DUSE_GDB_STUB=OFF \
+        -DUSE_FFMPEG=OFF \
+        -DUSE_MINIZIP=OFF \
+        -DUSE_LIBZIP=OFF \
+        -DUSE_SQLITE3=OFF \
+        -DUSE_ELF=OFF \
+        -DUSE_LUA=OFF \
+        -DUSE_LZMA=OFF \
+        -DUSE_DISCORD_RPC=OFF \
+        -DENABLE_SCRIPTING=OFF \
+        -DUSE_PNG=ON \
+        -DUSE_ZLIB=ON
+    cmake --build build -j"$(nproc)"
+}
+
+package() {
+    install -Dm755 build/sdl/mgba "$pkgdir/usr/bin/mgba"
+    install -Dm755 build/libmgba.so."$pkgver" \
+        "$pkgdir/usr/lib/libmgba.so.$pkgver"
+    ln -s "libmgba.so.$pkgver" "$pkgdir/usr/lib/libmgba.so.0.10"
+    ln -s "libmgba.so.0.10" "$pkgdir/usr/lib/libmgba.so"
+    install -Dm644 "$srcdir/mgba-$pkgver/LICENSE" \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

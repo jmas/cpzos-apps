@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=NES
+Name[uk]=NES
+Comment=Nintendo Entertainment System emulator
+Comment[uk]=Емулятор Nintendo Entertainment System
+Exec=/usr/bin/cpz-app roms --system nes
+Terminal=true
+Categories=Game;Emulator;
+Keywords=famicom;emulator;rom;
+Keywords[uk]=famicom;емулятор;rom;
+Icon=applications-games
+X-CPZ-Contract=1

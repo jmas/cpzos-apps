@@ -19,6 +19,7 @@ import (
 	"github.com/jmas/cpzos-apps/internal/i18n"
 	"github.com/jmas/cpzos-apps/internal/launch"
 	"github.com/jmas/cpzos-apps/internal/pacman"
+	"github.com/jmas/cpzos-apps/internal/roms"
 	"github.com/jmas/cpzos-apps/internal/settings"
 	"github.com/jmas/cpzos-apps/internal/store"
 )
@@ -54,6 +55,8 @@ func run(args []string) int {
 		return runApps(args[1:], tr)
 	case "settings":
 		return runSettings(args[1:], tr)
+	case "roms":
+		return runRoms(args[1:], tr)
 	case "run":
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
@@ -75,7 +78,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.1.0")
+		fmt.Println("cpz-app 0.2.0")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
@@ -376,6 +379,22 @@ func mapExit(code int) int {
 	default:
 		return exitFailed
 	}
+}
+
+// --- roms ----------------------------------------------------------------
+
+func runRoms(args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet("roms", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	system := fs.String("system", "", "nes, snes, genesis, gb or gba")
+	if err := fs.Parse(reorder(args, map[string]bool{"system": true})); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() != 0 || (*system != "" && !roms.Valid(*system)) {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	return runTUI(roms.New(*system))
 }
 
 // --- settings ------------------------------------------------------------

@@ -1,0 +1,18 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-app-snes
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="SNES emulator entry for CPZ Games"
+arch=('any')
+url="https://mednafen.github.io/"
+license=('GPL-2.0-or-later')
+depends=('cpz-system-apps>=0.2.0' 'mednafen')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-snes.desktop" \
+        "$pkgdir/usr/share/applications/cpz-snes.desktop"
+}

@@ -30,4 +30,6 @@ clean:
 		packaging/cpz-apps-catalog/pkg packaging/cpz-apps-catalog/src \
 		packaging/cpz-apps-catalog/apps.json \
 		packaging/nethack/pkg packaging/nethack/src \
-		packaging/nethack/*.pkg.tar.*
+		packaging/nethack/*.pkg.tar.* \
+		packaging/mgba/pkg packaging/mgba/src \
+		packaging/mgba/*.pkg.tar.*

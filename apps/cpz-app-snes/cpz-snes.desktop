@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=SNES
+Name[uk]=SNES
+Comment=Super Nintendo emulator
+Comment[uk]=Емулятор Super Nintendo
+Exec=/usr/bin/cpz-app roms --system snes
+Terminal=true
+Categories=Game;Emulator;
+Keywords=super nintendo;emulator;rom;
+Keywords[uk]=super nintendo;емулятор;rom;
+Icon=applications-games
+X-CPZ-Contract=1

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Game Boy Advance
+Name[uk]=Game Boy Advance
+Comment=Game Boy Advance emulator
+Comment[uk]=Емулятор Game Boy Advance
+Exec=/usr/bin/cpz-app roms --system gba
+Terminal=true
+Categories=Game;Emulator;
+Keywords=gba;emulator;rom;
+Keywords[uk]=gba;емулятор;rom;
+Icon=applications-games
+X-CPZ-Contract=1

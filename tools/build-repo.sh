@@ -33,6 +33,13 @@ echo "==> building platform dependencies"
 )
 mv packaging/nethack/nethack-*.pkg.tar.* "$OUT/pkgs/"
 
+echo "==> building mGBA"
+(
+    cd packaging/mgba
+    makepkg -A --nodeps --nocheck -f --noconfirm
+)
+mv packaging/mgba/cpz-mgba-*.pkg.tar.* "$OUT/pkgs/"
+
 echo "==> building application packages"
 for pkgbuild in apps/*/PKGBUILD; do
     [ -f "$pkgbuild" ] || continue
