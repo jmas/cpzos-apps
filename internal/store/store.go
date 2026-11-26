@@ -188,7 +188,7 @@ func (m *Model) menuItems() []tui.Item {
 	items := make([]tui.Item, 0, 8)
 	right := m.tr.T("apps.row.never")
 	if !m.idx.Generated.IsZero() {
-		right = m.tr.T("apps.row.update_at", "date", m.idx.Generated.Local().Format("2006-01-02"))
+		right = m.tr.T("apps.row.update_at", "date", m.idx.Generated.Local().Format("01-02 15:04"))
 	}
 	items = append(items, tui.Item{ID: itemUpdate, Name: m.tr.T("apps.row.update"), Right: right})
 

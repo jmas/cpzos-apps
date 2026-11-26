@@ -55,6 +55,9 @@ done
 echo "==> generating the catalog"
 go run ./tools/build-catalog -packages "$OUT/pkgs" -out packaging/cpz-apps-catalog/apps.json
 
+echo "==> checking catalog completeness"
+go run ./tools/check-catalog -catalog packaging/cpz-apps-catalog/apps.json -apps apps
+
 # Include the UTC time: a date-only version makes two catalog builds from the
 # same day compare equal, so pacman -S skips the second and devices keep stale
 # data forever.

@@ -121,6 +121,10 @@ The catalog package version is the UTC build time
 (`YYYY.MM.DD.HHMMSS`). A date-only version makes two rebuilds from the same day
 compare equal, so pacman skips the second one and devices keep stale data.
 
+`tools/check-catalog` runs after the catalog is generated. It fails the build
+if any desktop entry under `apps/` is missing from `apps.json`, so a release
+cannot be signed or published with an app left out.
+
 ## Published repository
 
 The signed `[cpz-apps]` repository is the `apps-stable` release:
@@ -133,6 +137,17 @@ The catalog JSON is `usr/share/cpz/catalog/apps.json` inside the
 `cpz-apps-catalog-<version>-1-any.pkg.tar.xz` asset; on a device the installed
 copy is `/usr/share/cpz/catalog/apps.json`. CI builds and signs every `v*` tag
 with `tools/sign-repo.sh`; it never publishes a tag without the signing key.
+
+Publishing rules:
+
+- a push to `main` does not publish; only a `v*` tag runs the package job;
+- the job fails if any `apps/*/*.desktop` entry is missing from the catalog;
+- a `file://` test image is a snapshot, not the release: App Manager cannot see
+  a newer release until the image is rebuilt or `/opt/cpz/apps-repo` is
+  replaced;
+- Apps Manager shows available apps in the catalog; Home shows only installed
+  apps. A newly published app appears under Games as available and must be
+  installed.
 
 ## Example application
 
