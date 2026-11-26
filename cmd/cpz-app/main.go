@@ -67,10 +67,12 @@ func configureAudio() {
 	if index == "" {
 		return
 	}
+	// amixer sset uses simple-control names: the kernel's "DACL Playback
+	// Volume" and "Speaker Switch" become "DACL" and "Speaker".
 	for _, args := range [][]string{
-		{"-q", "-c", index, "sset", "DACL Playback Volume", "164"},
-		{"-q", "-c", index, "sset", "DACR Playback Volume", "164"},
-		{"-q", "-c", index, "sset", "Speaker Switch", "on"},
+		{"-q", "-c", index, "sset", "DACL", "164"},
+		{"-q", "-c", index, "sset", "DACR", "164"},
+		{"-q", "-c", index, "sset", "Speaker", "on"},
 	} {
 		_ = exec.Command("amixer", args...).Run()
 	}
@@ -121,7 +123,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.4.3")
+		fmt.Println("cpz-app 0.4.4")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
