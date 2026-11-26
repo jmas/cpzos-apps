@@ -278,7 +278,7 @@ func recordedArgs(t *testing.T, path string) string {
 	return string(b)
 }
 
-func TestManualUpdateForcesRefresh(t *testing.T) {
+func TestManualUpdateUpgradesSystemAndApps(t *testing.T) {
 	logPath := helperRecorder(t)
 	msg, ok := opCmd(actUpdate, "")().(opMsg)
 	if !ok {
@@ -287,7 +287,7 @@ func TestManualUpdateForcesRefresh(t *testing.T) {
 	if msg.err != nil {
 		t.Fatalf("opCmd: %v", msg.err)
 	}
-	if got, want := recordedArgs(t, logPath), "refresh-catalog\n--force\n"; got != want {
+	if got, want := recordedArgs(t, logPath), "update-all\n"; got != want {
 		t.Fatalf("helper args = %q, want %q", got, want)
 	}
 }

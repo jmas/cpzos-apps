@@ -71,12 +71,13 @@ the catalog. The helper ignores `linux-rpi` and `raspberrypi-bootloader`: the
 boot files are generated into the FAT partition by the image build, so a new
 kernel or bootloader needs a new image, not an in-place transaction.
 
-`apps update` and the Apps Manager `Update app list` row pass `--force`, so an
-explicit refresh always runs. Only the automatic refresh on entry is limited to
-one attempt per 10 minutes. The row refreshes the catalog only; it does not
-upgrade the installed system apps. Use Settings → **Update system** (or install
-or remove an app, which runs the same full upgrade) to move `cpz-system-apps`
-to a new version.
+`apps update` and the Apps Manager **Update list and apps** row run a full
+`pacman -Syu` (the kernel and bootloader stay pinned), then force-refresh the
+catalog. Installed apps and the system apps move to the versions in
+`[cpz-apps]`, and new catalog entries appear. Only the automatic refresh on
+entry is limited to one attempt per 10 minutes and updates the catalog alone.
+Settings → **Update system** upgrades the system and apps but does not force
+the catalog reinstall.
 
 ## Build
 
@@ -95,8 +96,8 @@ from the configured `[cpz-apps]` repository, so adding a directory under
 `apps/` does nothing until the repository is rebuilt. A local `file://` test
 image also bakes a snapshot of that repository into `/opt/cpz/apps-repo`;
 replace that copy or rebuild the image when `dist/repo` changes. App Manager's
-`Update app list` only installs a newer catalog package, it never generates a
-catalog from source.
+**Update list and apps** installs newer packages from the repository, including
+`cpz-apps-catalog`; it never generates a catalog from source.
 
 ## Catalog
 

@@ -3,6 +3,7 @@
 #
 #   app-install refresh-catalog [--force]
 #   app-install update-system
+#   app-install update-all
 #   app-install install <package>
 #   app-install remove  <package>
 #
@@ -21,7 +22,7 @@ log() {
 }
 
 [ "$(id -u)" -eq 0 ] || die "must run as root"
-[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog [--force]|update-system|install <pkg>|remove <pkg>"
+[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog [--force]|update-system|update-all|install <pkg>|remove <pkg>"
 
 case "$1" in
     refresh-catalog)
@@ -32,6 +33,9 @@ case "$1" in
         ;;
     update-system)
         [ "$#" -eq 1 ] || die "update-system takes no arguments"
+        ;;
+    update-all)
+        [ "$#" -eq 1 ] || die "update-all takes no arguments"
         ;;
     install|remove)
         [ "$#" -eq 2 ] || die "$1 takes exactly one package"
@@ -128,6 +132,11 @@ case "$1" in
     update-system)
         log "system update"
         full_upgrade
+        ;;
+    update-all)
+        log "system and catalog update"
+        full_upgrade
+        refresh_catalog --force
         ;;
     install)
         install_app "$2"

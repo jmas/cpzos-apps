@@ -75,6 +75,43 @@ func TestSettingsUpdateJSON(t *testing.T) {
 	}
 }
 
+func TestAppsUpdateJSON(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "args")
+	helper := filepath.Join(dir, "app-install")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CPZ_ARGS_LOG\"\n"
+	if err := os.WriteFile(helper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_APP_INSTALL", helper)
+	t.Setenv("CPZ_ARGS_LOG", logPath)
+
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	code := appsOp("update", []string{"--json", "--yes"}, i18n.For("en"))
+	w.Close()
+	os.Stdout = old
+	out, _ := io.ReadAll(r)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	args, _ := os.ReadFile(logPath)
+	if got, want := string(args), "update-all\n"; got != want {
+		t.Fatalf("helper args = %q, want %q", got, want)
+	}
+	var res opJSON
+	if err := json.Unmarshal(out, &res); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	if !res.OK || res.Action != "update" {
+		t.Fatalf("payload = %+v", res)
+	}
+}
+
 func TestAppsListJSON(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "applications"), 0o755); err != nil {

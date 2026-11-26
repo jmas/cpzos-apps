@@ -684,7 +684,13 @@ func (m Model) handleConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func opCmd(kind actionKind, pkg string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		timeout := 10 * time.Minute
+		if kind == actUpdate {
+			// A full upgrade on the device can take longer than one app
+			// install; the helper keeps the kernel and bootloader pinned.
+			timeout = 30 * time.Minute
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		verb := ""
 		switch kind {
@@ -694,9 +700,10 @@ func opCmd(kind actionKind, pkg string) tea.Cmd {
 			verb = "remove"
 		}
 		if kind == actUpdate {
-			// The user asked for a refresh: bypass the automatic 10-minute
-			// rate limit in the helper.
-			out, err := pacman.Run(ctx, "refresh-catalog", "--force")
+			// The user asked for an explicit update: upgrade the system and
+			// installed apps, then refresh the catalog. The helper bypasses
+			// the automatic 10-minute catalog rate limit.
+			out, err := pacman.Run(ctx, "update-all")
 			return opMsg{kind: kind, out: out, err: err}
 		}
 		if verb == "" {

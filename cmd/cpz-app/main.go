@@ -246,13 +246,18 @@ func appsOp(action string, args []string, tr *i18n.Translator) int {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	timeout := 10 * time.Minute
+	if action == "update" {
+		timeout = 30 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	var out string
 	var err error
 	if action == "update" {
-		// A command is an explicit request, so skip the automatic rate limit.
-		out, err = pacman.Run(ctx, "refresh-catalog", "--force")
+		// A command is an explicit request: upgrade the system and installed
+		// apps, then refresh the catalog.
+		out, err = pacman.Run(ctx, "update-all")
 	} else {
 		out, err = pacman.Run(ctx, action, pkg)
 	}
