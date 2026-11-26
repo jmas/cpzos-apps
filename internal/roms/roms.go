@@ -149,10 +149,29 @@ func (s System) matches(path string) bool {
 	return false
 }
 
+// mgbaBindings maps the Cardputer d-pad (F/X/Z/C) and the face/shoulder keys
+// to the GBA pad. mGBA otherwise uses the arrow keys, which are Fn-only here.
+var mgbaBindings = []string{
+	"gba.input.SDLK.keyUp=102",   // F
+	"gba.input.SDLK.keyDown=120", // X
+	"gba.input.SDLK.keyLeft=122", // Z
+	"gba.input.SDLK.keyRight=99", // C
+	"gba.input.SDLK.keyA=107",    // K
+	"gba.input.SDLK.keyB=106",    // J
+	"gba.input.SDLK.keyL=117",    // U
+	"gba.input.SDLK.keyR=105",    // I
+	"gba.input.SDLK.keyStart=13", // Enter
+	"gba.input.SDLK.keySelect=8", // Backspace
+}
+
 // Argv returns the emulator command for a ROM.
 func (s System) Argv(path string) []string {
 	if s.Emulator == "mgba" {
-		return []string{"mgba", "-f", path}
+		argv := []string{"mgba", "-f"}
+		for _, binding := range mgbaBindings {
+			argv = append(argv, "-C", binding)
+		}
+		return append(argv, path)
 	}
 	return []string{"mednafen", "-ovconfig", MednafenConfig, "-force_module", s.Module, path}
 }

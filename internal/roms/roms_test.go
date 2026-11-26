@@ -54,9 +54,11 @@ func TestArgv(t *testing.T) {
 	}
 	gba, _ := ByID("gba")
 	got = gba.Argv("/roms/demo.gba")
-	want = []string{"mgba", "-f", "/roms/demo.gba"}
-	if strings.Join(got, " ") != strings.Join(want, " ") {
+	if got[0] != "mgba" || got[1] != "-f" || got[len(got)-1] != "/roms/demo.gba" {
 		t.Fatalf("gba argv = %#v", got)
+	}
+	if !strings.Contains(strings.Join(got, " "), "gba.input.SDLK.keyUp=102") {
+		t.Fatalf("gba argv has no Cardputer d-pad binding: %#v", got)
 	}
 }
 

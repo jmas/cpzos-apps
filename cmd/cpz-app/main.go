@@ -78,7 +78,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.2.0")
+		fmt.Println("cpz-app 0.2.1")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))

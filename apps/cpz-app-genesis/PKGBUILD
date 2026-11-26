@@ -2,12 +2,12 @@
 
 pkgname=cpz-app-genesis
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Sega Genesis emulator entry for CPZ Games"
 arch=('any')
 url="https://mednafen.github.io/"
 license=('GPL-2.0-or-later')
-depends=('cpz-system-apps>=0.2.0' 'mednafen')
+depends=('cpz-system-apps>=0.2.1' 'mednafen')
 options=('!strip')
 source=()
 sha256sums=()
