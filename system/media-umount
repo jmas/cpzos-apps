@@ -26,12 +26,27 @@ case "$1" in
         die "invalid path: $1"
         ;;
 esac
+# Resolve by-id/by-uuid symlinks to the kernel name the automount helper
+# recorded. The node can be gone after a yank; keep the original then.
+if [ -e "$dev" ]; then
+    resolved=$(readlink -f -- "$dev" 2>/dev/null) || resolved=
+    [ -n "$resolved" ] && dev=$resolved
+fi
 case "$dev" in
-    /dev/?*) ;;
+    /dev/*) ;;
     *) die "not a device: $dev" ;;
 esac
-case "$dev" in
-    *..* | */*/*) die "invalid device: $dev" ;;
+# Exactly one component under /dev. The old */*/* pattern also matched
+# "/dev/sda1" (it has two slashes), so every valid unmount was rejected.
+rest=${dev#/dev/}
+case "$rest" in
+    '' | . | .. | */* | *..*) die "invalid device: $dev" ;;
 esac
+# Test hook: stop after validation so CI can check the accepted device without
+# touching the mount table. sudoers does not allow passing this environment.
+if [ "${CPZ_MEDIA_UMOUNT_TEST:-}" = "1" ]; then
+    printf '%s\n' "$dev"
+    exit 0
+fi
 [ -x /usr/local/bin/cpz-automount ] || die "cpz-automount is not installed"
 exec /usr/local/bin/cpz-automount umount "$dev"

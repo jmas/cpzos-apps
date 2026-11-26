@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -76,5 +77,37 @@ func TestUnmountFallsBackToMountpoint(t *testing.T) {
 func TestRejectsTraversal(t *testing.T) {
 	if err := Unmount(context.Background(), Entry{Device: "/dev/../etc/shadow"}); err == nil {
 		t.Fatal("traversal device accepted")
+	}
+}
+
+func TestMediaUmountValidation(t *testing.T) {
+	helper := filepath.Join("..", "..", "system", "media-umount")
+	cases := []struct {
+		arg  string
+		ok   bool
+		want string
+	}{
+		{"/dev/sda1", true, "/dev/sda1\n"},
+		{"/dev/mmcblk0p1", true, "/dev/mmcblk0p1\n"},
+		{"/dev/disk/by-id/foo", false, ""},
+		{"/dev/../etc/passwd", false, ""},
+		{"../../etc/shadow", false, ""},
+	}
+	for _, c := range cases {
+		cmd := exec.Command("sh", helper, c.arg)
+		cmd.Env = append(os.Environ(), "CPZ_MEDIA_UMOUNT_TEST=1")
+		out, err := cmd.Output()
+		if c.ok {
+			if err != nil {
+				t.Fatalf("%s: %v", c.arg, err)
+			}
+			if string(out) != c.want {
+				t.Fatalf("%s: out %q, want %q", c.arg, out, c.want)
+			}
+			continue
+		}
+		if err == nil {
+			t.Fatalf("%s: accepted, want rejection", c.arg)
+		}
 	}
 }
