@@ -110,6 +110,19 @@ The catalog package version is the UTC build time
 (`YYYY.MM.DD.HHMMSS`). A date-only version makes two rebuilds from the same day
 compare equal, so pacman skips the second one and devices keep stale data.
 
+## Published repository
+
+The signed `[cpz-apps]` repository is the `apps-stable` release:
+
+```text
+https://github.com/jmas/cpzos-apps/releases/download/apps-stable
+```
+
+The catalog JSON is `usr/share/cpz/catalog/apps.json` inside the
+`cpz-apps-catalog-<version>-1-any.pkg.tar.xz` asset; on a device the installed
+copy is `/usr/share/cpz/catalog/apps.json`. CI builds and signs every `v*` tag
+with `tools/sign-repo.sh`; it never publishes a tag without the signing key.
+
 ## Example application
 
 `apps/cpz-app-mc` wraps the Arch `mc` package: it installs only a desktop
