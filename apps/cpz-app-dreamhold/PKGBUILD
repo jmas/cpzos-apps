@@ -1,0 +1,30 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+#
+# The Dreamhold, Andrew Plotkin's tutorial interactive fiction, is a Z-code
+# story. Frotz is the interpreter; the app is named after the game.
+
+pkgname=cpz-app-dreamhold
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="The Dreamhold for CPZ Games"
+arch=('any')
+url="https://zarfhome.com/dreamhold/"
+license=('custom')
+depends=('frotz-ncurses')
+options=('!strip')
+source=('https://ifarchive.org/if-archive/games/zcode/dreamhold.z8')
+sha256sums=('399dbfb92024d2a702029dd1921a1023569888941683d953d3755d6856ce2941')
+
+package() {
+    install -Dm644 "$srcdir/dreamhold.z8" \
+        "$pkgdir/usr/share/cpz/if/dreamhold.z8"
+    install -Dm644 "$startdir/cpz-dreamhold.desktop" \
+        "$pkgdir/usr/share/applications/cpz-dreamhold.desktop"
+    install -dm755 "$pkgdir/usr/share/doc/$pkgname"
+    cat > "$pkgdir/usr/share/doc/$pkgname/NOTICE" <<'EOF'
+The Dreamhold
+Copyright 2003-2004 Andrew Plotkin.
+Freeware interactive fiction. Story file from the IF Archive:
+https://ifarchive.org/if-archive/games/zcode/dreamhold.z8
+EOF
+}

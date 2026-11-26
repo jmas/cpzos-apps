@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Bronze
+Name[uk]=Bronze
+Comment=Modern interactive-fiction retelling of Beauty and the Beast
+Comment[uk]=Сучасна текстова пригода за мотивами «Красуня і Чудовисько»
+Exec=/usr/bin/frotz /usr/share/cpz/if/bronze.zblorb
+Terminal=true
+Categories=Game;AdventureGame;
+Keywords=interactive fiction;text adventure;if;bronze;beauty and the beast;
+Keywords[uk]=інтерактивна проза;текстова пригода;if;bronze;красуня і чудовисько;
+Icon=applications-games
+X-CPZ-Contract=1

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=The Dreamhold
+Name[uk]=The Dreamhold
+Comment=Modern interactive-fiction tutorial
+Comment[uk]=Сучасний туторіал з інтерактивної прози
+Exec=/usr/bin/frotz /usr/share/cpz/if/dreamhold.z8
+Terminal=true
+Categories=Game;AdventureGame;
+Keywords=interactive fiction;text adventure;if;dreamhold;z-machine;
+Keywords[uk]=інтерактивна проза;текстова пригода;if;dreamhold;z-machine;
+Icon=applications-games
+X-CPZ-Contract=1

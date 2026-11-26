@@ -144,7 +144,13 @@ Freedoom data:
   (`freedoom2.wad`) are the Doom- and Doom II-compatible games;
 - `FreeDM` (`freedm.wad`) is the deathmatch WAD for Doom II;
 - `NetHack`, `NBSDGAMES!`, `GNU Chess`, `GNU Go` and
-  `Colossal Cave Adventure` are terminal games that fit the panel.
+  `Colossal Cave Adventure` are terminal games that fit the panel;
+- `The Dreamhold` and `Bronze` are freeware Z-code interactive fiction,
+  installed as separate story packages with `frotz-ncurses` as the interpreter.
+
+The interactive-fiction entries are named after the stories, not the
+interpreter. They are freeware rather than open source; the author, source URL
+and redistribution note are in `/usr/share/doc/<package>/NOTICE`.
 
 `NetHack` depends on the patched `nethack` package in this repository. The
 Arch package enables GDB panic tracing and points `GDBPATH` at `/usr/bin/gdb`;
