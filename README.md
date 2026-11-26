@@ -72,8 +72,11 @@ boot files are generated into the FAT partition by the image build, so a new
 kernel or bootloader needs a new image, not an in-place transaction.
 
 `apps update` and the Apps Manager `Update app list` row pass `--force`, so an
-explicit update always runs. Only the automatic refresh on entry is limited to
-one attempt per 10 minutes.
+explicit refresh always runs. Only the automatic refresh on entry is limited to
+one attempt per 10 minutes. The row refreshes the catalog only; it does not
+upgrade the installed system apps. Use Settings → **Update system** (or install
+or remove an app, which runs the same full upgrade) to move `cpz-system-apps`
+to a new version.
 
 ## Build
 

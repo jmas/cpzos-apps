@@ -42,7 +42,7 @@
     "apps.detail.version": "Version",
     "apps.confirm.remove": "Remove {name} and its package? User data is kept.",
     "apps.confirm.install": "Install {name}? The system and apps will be updated first.",
-    "apps.confirm.update": "Update the system and the app list now?",
+    "apps.confirm.update": "Update the app list now?",
     "apps.status.starting": "Starting {name}…",
     "apps.status.running": "{name} is already running",
     "apps.status.busy_launch": "Wait for {name} to start",

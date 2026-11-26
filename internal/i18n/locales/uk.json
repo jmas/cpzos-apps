@@ -44,7 +44,7 @@
     "apps.detail.version": "Версія",
     "apps.confirm.remove": "Видалити {name} і його пакет? Дані користувача лишаться.",
     "apps.confirm.install": "Встановити {name}? Спочатку оновиться система й додатки.",
-    "apps.confirm.update": "Оновити систему та список додатків зараз?",
+    "apps.confirm.update": "Оновити список додатків зараз?",
     "apps.status.starting": "Запускаю {name}…",
     "apps.status.running": "{name} уже запущено",
     "apps.status.busy_launch": "Зачекайте, {name} запускається",
