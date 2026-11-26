@@ -115,3 +115,27 @@ func TestModelShowsGames(t *testing.T) {
 		t.Fatalf("system view missing NES:\n%s", out)
 	}
 }
+
+// Mednafen's keyboard fields are SDL scancodes, not SDL key symbols. The
+// Cardputer d-pad is F/X/Z/C, so the table must contain 9/27/29/6; 120/122/99
+// are the old key symbols and leave three directions dead.
+func TestMednafenConfigUsesScancodes(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "system", "emulators", "mednafen.cfg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(b)
+	for _, want := range []string{
+		"command.exit keyboard 0x0 41",
+		"nes.input.port1.gamepad.up keyboard 0x0 9",
+		"nes.input.port1.gamepad.down keyboard 0x0 27",
+		"nes.input.port1.gamepad.left keyboard 0x0 29",
+		"nes.input.port1.gamepad.right keyboard 0x0 6",
+		"nes.input.port1.gamepad.start keyboard 0x0 40",
+		"nes.input.port1.gamepad.select keyboard 0x0 42",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("mednafen.cfg is missing %q", want)
+		}
+	}
+}
