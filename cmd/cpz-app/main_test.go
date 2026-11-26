@@ -155,3 +155,14 @@ X-CPZ-System=true
 		t.Fatalf("payload = %+v", payload)
 	}
 }
+
+func TestAudioCardIndex(t *testing.T) {
+	cards := []byte(" 0 [vc4hdmi        ]: vc4-hdmi - vc4-hdmi\n" +
+		" 1 [ES8389Audio    ]: cardputerzero-audio - ES8389-Audio\n")
+	if got := audioCardIndex(cards); got != "1" {
+		t.Fatalf("audioCardIndex = %q, want 1", got)
+	}
+	if got := audioCardIndex([]byte(" 0 [vc4hdmi ]: vc4-hdmi\n")); got != "" {
+		t.Fatalf("audioCardIndex without the codec = %q", got)
+	}
+}

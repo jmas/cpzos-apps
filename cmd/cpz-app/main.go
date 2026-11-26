@@ -41,14 +41,39 @@ func main() {
 	os.Exit(run(os.Args[1:]))
 }
 
-// configureAudio connects the ES8389 speaker amplifier. cpz-session does this
-// at session start, but an app update on an older image must also make the
-// emulators audible without a reboot.
+// configureAudio connects the ES8389 speaker amplifier. cpz-session does the
+// same at session start, but an app update on an older image must also make the
+// emulators audible without a reboot. amixer -c takes a card index, so read it
+// from /proc/asound/cards instead of assuming card 0: the vc4 HDMI card can own
+// that number. No shell is involved.
+func audioCardIndex(cards []byte) string {
+	for _, line := range strings.Split(string(cards), "\n") {
+		if !strings.Contains(line, "ES8389") {
+			continue
+		}
+		if fields := strings.Fields(line); len(fields) > 0 {
+			return fields[0]
+		}
+	}
+	return ""
+}
+
 func configureAudio() {
-	if _, err := os.Stat("/usr/lib/cpz/audio"); err != nil {
+	cards, err := os.ReadFile("/proc/asound/cards")
+	if err != nil {
 		return
 	}
-	_ = exec.Command("/usr/lib/cpz/audio").Run()
+	index := audioCardIndex(cards)
+	if index == "" {
+		return
+	}
+	for _, args := range [][]string{
+		{"-q", "-c", index, "sset", "DACL Playback Volume", "164"},
+		{"-q", "-c", index, "sset", "DACR Playback Volume", "164"},
+		{"-q", "-c", index, "sset", "Speaker Switch", "on"},
+	} {
+		_ = exec.Command("amixer", args...).Run()
+	}
 }
 
 func run(args []string) int {
@@ -96,7 +121,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.4.2")
+		fmt.Println("cpz-app 0.4.3")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
