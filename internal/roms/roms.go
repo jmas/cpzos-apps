@@ -174,17 +174,19 @@ func (s System) matches(path string) bool {
 
 // mgbaBindings maps the Cardputer d-pad (F/X/Z/C) and the face/shoulder keys
 // to the GBA pad. mGBA otherwise uses the arrow keys, which are Fn-only here.
+// SDL scancodes, not key symbols: the physical keys are the same on the us
+// and ua layouts, while their Unicode symbols are not.
 var mgbaBindings = []string{
-	"gba.input.SDLK.keyUp=102",   // F
-	"gba.input.SDLK.keyDown=120", // X
-	"gba.input.SDLK.keyLeft=122", // Z
-	"gba.input.SDLK.keyRight=99", // C
-	"gba.input.SDLK.keyA=107",    // K
-	"gba.input.SDLK.keyB=106",    // J
-	"gba.input.SDLK.keyL=117",    // U
-	"gba.input.SDLK.keyR=105",    // I
-	"gba.input.SDLK.keyStart=13", // Enter
-	"gba.input.SDLK.keySelect=8", // Backspace
+	"gba.input.SDLK.keyUp=9",      // F
+	"gba.input.SDLK.keyDown=27",   // X
+	"gba.input.SDLK.keyLeft=29",   // Z
+	"gba.input.SDLK.keyRight=6",   // C
+	"gba.input.SDLK.keyA=14",      // K
+	"gba.input.SDLK.keyB=13",      // J
+	"gba.input.SDLK.keyL=24",      // U
+	"gba.input.SDLK.keyR=12",      // I
+	"gba.input.SDLK.keyStart=40",  // Enter
+	"gba.input.SDLK.keySelect=42", // Backspace
 }
 
 // Argv returns the emulator command for a ROM.

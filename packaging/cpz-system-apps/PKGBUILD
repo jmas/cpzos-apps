@@ -1,7 +1,7 @@
 # Maintainer: CPZ <cpz-ui@jmas.github.io>
 
 pkgname=cpz-system-apps
-pkgver=0.3.2
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="CPZ system apps: Home, Apps Manager, Settings, Terminal and the package helper"
 arch=('aarch64')
@@ -48,8 +48,6 @@ package() {
         "$pkgdir/usr/share/applications/cpz-settings.desktop"
     install -Dm644 "$startdir/../../system/desktop/cpz-terminal.desktop" \
         "$pkgdir/usr/share/applications/cpz-terminal.desktop"
-    install -Dm644 "$startdir/../../system/desktop/cpz-roms.desktop" \
-        "$pkgdir/usr/share/applications/cpz-roms.desktop"
     install -Dm644 "$startdir/../../system/emulators/mednafen.cfg" \
         "$pkgdir/usr/share/cpz/emulators/mednafen.cfg"
     install -Dm644 "$startdir/../../system/open-with.conf" \

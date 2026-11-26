@@ -1,0 +1,23 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+#
+# The Roms launcher is optional. It is not part of cpz-system-apps; installing
+# it adds the all-systems entry, while the per-console packages keep working
+# without it.
+
+pkgname=cpz-app-roms
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="ROM launcher for CPZ Games"
+arch=('any')
+url="https://github.com/jmas/cpzos-apps"
+license=('BSD-3-Clause')
+depends=('cpz-system-apps>=0.4.0')
+groups=('cpz-apps')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-roms.desktop" \
+        "$pkgdir/usr/share/applications/cpz-roms.desktop"
+}

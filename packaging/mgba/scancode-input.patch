@@ -1,0 +1,12 @@
+--- a/src/platform/sdl/sdl-events.c
++++ b/src/platform/sdl/sdl-events.c
+@@ -464,7 +464,8 @@
+ static void _mSDLHandleKeypress(struct mCoreThread* context, struct mSDLPlayer* sdlContext, const struct SDL_KeyboardEvent* event) {
+ 	int key = -1;
+ 	if (!(event->keysym.mod & ~(KMOD_NUM | KMOD_CAPS))) {
+-		key = mInputMapKey(sdlContext->bindings, SDL_BINDING_KEY, event->keysym.sym);
++		/* Physical scancodes keep the CPZ d-pad working on us and ua. */
++		key = mInputMapKey(sdlContext->bindings, SDL_BINDING_KEY, event->keysym.scancode);
+ 	}
+ 	if (key != -1) {
+ 		mCoreThreadInterrupt(context);

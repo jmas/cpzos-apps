@@ -5,7 +5,7 @@ This repository is the source of the signed `[cpz-apps]` pacman repository;
 it is not part of the base image.
 
 ```text
-cpz-system-apps     Home, Apps Manager, Settings, Roms, Terminal
+cpz-system-apps     Home, Apps Manager, Settings, Terminal
 cpz-apps-catalog    data-only catalog of available apps (apps.json)
 cpz-app-<name>      applications; each installs desktop entries
 ```
@@ -16,11 +16,13 @@ background through a narrow helper.
 
 ## System apps
 
-Home, Apps Manager, Settings and Roms are one binary on the shared
-`internal/tui` kit; Terminal is a desktop entry that starts a login shell. Home
-and the catalog list only the system apps and installed apps that come from
+Home, Apps Manager and Settings are one binary on the shared `internal/tui`
+kit; Terminal is a desktop entry that starts a login shell. Roms is an optional
+catalog entry that uses the same binary and is installed only when the user
+asks for it. Home and the catalog list only the system apps and installed apps
+that come from
 the catalog; unrelated desktop entries shipped by the session (foot, help) are
-not apps. Home, Apps Manager, Settings and Roms follow the binding rules in
+not apps. The TUI screens follow the binding rules in
 `cpz-arch/docs/TUI-CONTRACT.md`:
 
 - plain `F` / `X` / `Z` / `C` navigation (no Fn), arrows, `Enter`, `Esc`;
@@ -201,17 +203,17 @@ game that actually starts, not its engine. The Freedoom packages are why
 ~/roms/gba/
 ```
 
-It also scans `/run/media/$USER/*/roms/<system>` and
-`/media/$USER/*/roms/<system>` for USB sticks. The **Roms** system entry shows
-every system; the catalog entries **NES**, **SNES**, **Sega Genesis**,
-**Game Boy** and **Game Boy Advance** install the matching emulator and open
-the list filtered to that system.
+It also scans the `cpz-automount` state, `/media/*`, `<mount>/<system>`,
+`<mount>/roms/<system>` and root-level ROM files. The optional **Roms** app
+shows every system and must be installed from Apps Manager; the catalog entries
+**NES**, **SNES**, **Sega Genesis**, **Game Boy** and **Game Boy Advance**
+install the matching emulator and open the list filtered to that system.
 
 Mednafen handles NES, SNES and Genesis; `cpz-mgba` is a minimal mGBA build for
 Game Boy, Game Boy Color and Game Boy Advance. No ROMs or BIOS files are
 shipped. Mednafen uses `F`/`X`/`Z`/`C`, `J`/`K`/`L`, `U`/`I`,
 `Enter`/`Backspace`; mGBA gets the same d-pad through explicit `-C` bindings.
-Both avoid the Fn layer.
+Both use plain `Esc` to exit. All controls avoid the Fn layer.
 
 ## Media and Open with
 

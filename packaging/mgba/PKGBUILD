@@ -10,7 +10,7 @@
 
 pkgname=cpz-mgba
 pkgver=0.10.5
-pkgrel=1
+pkgrel=2
 pkgdesc="Minimal mGBA SDL frontend for CPZ Games"
 arch=('aarch64')
 url="https://mgba.io/"
@@ -20,8 +20,18 @@ makedepends=('cmake' 'sdl2' 'zlib' 'libpng' 'mesa' 'base-devel')
 provides=('mgba-sdl' 'libmgba')
 conflicts=('mgba-sdl' 'libmgba')
 options=('!strip')
-source=("mgba-$pkgver.tar.gz::https://github.com/mgba-emu/mgba/archive/refs/tags/$pkgver.tar.gz")
-sha256sums=('91d6fbd32abcbdf030d58d3f562de25ebbc9d56040d513ff8e5c19bee9dacf14')
+source=("mgba-$pkgver.tar.gz::https://github.com/mgba-emu/mgba/archive/refs/tags/$pkgver.tar.gz"
+        exit-escape.patch
+        scancode-input.patch)
+sha256sums=('91d6fbd32abcbdf030d58d3f562de25ebbc9d56040d513ff8e5c19bee9dacf14'
+            '787f4fa28fb43f454a87352de0dec1e8f10bbeeef6a500e39a3fd0b9a29e883a'
+            '846590365bf332252536d4e2606af043c0efc48c202eb54c58f4215d3903d79b')
+
+prepare() {
+    cd "$srcdir/mgba-$pkgver"
+    patch -p1 -i "$srcdir/exit-escape.patch"
+    patch -p1 -i "$srcdir/scancode-input.patch"
+}
 
 build() {
     cmake -S "$srcdir/mgba-$pkgver" -B build \
