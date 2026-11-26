@@ -55,6 +55,10 @@ jobs:
       - name: sign
         run: ./tools/sign-repo.sh
       - name: publish apps-stable
+        env:
+          # gh runs as root after the builder step; do not make it inspect the
+          # git checkout, which is owned by the builder user.
+          GH_REPO: ${{ github.repository }}
         run: |
           tag=apps-stable
           gh release view "$tag" >/dev/null 2>&1 || \
