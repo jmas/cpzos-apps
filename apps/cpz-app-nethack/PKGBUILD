@@ -2,12 +2,12 @@
 
 pkgname=cpz-app-nethack
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc="NetHack entry for CPZ Games"
 arch=('any')
 url="https://www.nethack.org/"
 license=('NGPL')
-depends=('nethack')
+depends=('nethack>=5.0.0-2.1')
 options=('!strip')
 source=()
 sha256sums=()

@@ -26,6 +26,13 @@ echo "==> building cpz-system-apps"
 )
 mv packaging/cpz-system-apps/cpz-system-apps-*.pkg.tar.* "$OUT/pkgs/"
 
+echo "==> building platform dependencies"
+(
+    cd packaging/nethack
+    makepkg -A --nodeps --nocheck -f --noconfirm
+)
+mv packaging/nethack/nethack-*.pkg.tar.* "$OUT/pkgs/"
+
 echo "==> building application packages"
 for pkgbuild in apps/*/PKGBUILD; do
     [ -f "$pkgbuild" ] || continue

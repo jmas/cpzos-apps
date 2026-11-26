@@ -142,6 +142,11 @@ Freedoom data:
 - `NetHack`, `NBSDGAMES!`, `GNU Chess`, `GNU Go` and
   `Colossal Cave Adventure` are terminal games that fit the panel.
 
+`NetHack` depends on the patched `nethack` package in this repository. The
+Arch package enables GDB panic tracing and points `GDBPATH` at `/usr/bin/gdb`;
+the device does not ship gdb, and NetHack treats the missing path as a fatal
+sysconf error. The package keeps the game and disables only the GDB trace.
+
 `GNU Go` starts a 9x9 game because a 19x19 board is wider than the panel.
 Games that need a much larger text grid are deliberately not packaged:
 Dungeon Crawl Stone Soup and Cataclysm: Dark Days Ahead do not fit 45x12, and

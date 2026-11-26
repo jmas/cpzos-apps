@@ -28,4 +28,6 @@ repo: package
 clean:
 	rm -rf $(OUT) packaging/cpz-system-apps/pkg packaging/cpz-system-apps/src \
 		packaging/cpz-apps-catalog/pkg packaging/cpz-apps-catalog/src \
-		packaging/cpz-apps-catalog/apps.json
+		packaging/cpz-apps-catalog/apps.json \
+		packaging/nethack/pkg packaging/nethack/src \
+		packaging/nethack/*.pkg.tar.*

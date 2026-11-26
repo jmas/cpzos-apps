@@ -38,7 +38,7 @@ jobs:
       GPG_PASSPHRASE: ${{ secrets.CPZ_UI_KEY_PASSPHRASE }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - run: pacman -Syu --noconfirm --disable-sandbox go git github-cli sudo gnupg
+      - run: pacman -Syu --noconfirm --disable-sandbox go git github-cli sudo gnupg lua54 ncurses
       - uses: actions/checkout@v4
       - name: builder user
         run: |
