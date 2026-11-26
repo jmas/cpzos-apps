@@ -7,6 +7,7 @@ Comment[uk]=Оболонка в новій вкладці
 Exec=bash -l
 Terminal=true
 Categories=System;TerminalEmulator;
+MimeType=inode/directory;
 Keywords=shell;console;tab;
 X-CPZ-System=true
 X-CPZ-Contract=1

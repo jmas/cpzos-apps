@@ -209,9 +209,33 @@ the list filtered to that system.
 
 Mednafen handles NES, SNES and Genesis; `cpz-mgba` is a minimal mGBA build for
 Game Boy, Game Boy Color and Game Boy Advance. No ROMs or BIOS files are
-shipped. Mednafen uses `WASD`, `J`/`K`/`L`, `U`/`I`, `Enter`/`Backspace`;
-mGBA keeps its `X`/`Z`/`A`/`S`, `Enter`/`Backspace` defaults. Both avoid the
-Fn layer.
+shipped. Mednafen uses `F`/`X`/`Z`/`C`, `J`/`K`/`L`, `U`/`I`,
+`Enter`/`Backspace`; mGBA gets the same d-pad through explicit `-C` bindings.
+Both avoid the Fn layer.
+
+## Media and Open with
+
+The base image mounts USB filesystems with `cpz-automount` under
+`/media/<label>` and records them in `/run/cpz-automount`. Home lists those
+disks above the apps and updates when a disk is plugged or unplugged.
+
+Selecting a disk opens a menu:
+
+- **Open** uses the default handler for the path;
+- **Open with…** chooses another installed handler;
+- **Unmount** calls `/usr/lib/cpz/media-umount`, which forwards to
+  `cpz-automount` as root.
+
+`internal/openwith` is the single entry point for opening a path. It reads
+`/etc/cpz/open-with.conf` and `~/.config/cpz/open-with.conf` (keys are
+`directory` or a MIME type, values are desktop entry ids) and otherwise uses
+installed `MimeType` handlers. Directories fall back to Terminal; installing
+Midnight Commander adds it to **Open with…**. The same function is available
+headlessly:
+
+```sh
+cpz-app open <path> [--with desktop-id] [--list]
+```
 
 ## Curation
 

@@ -85,6 +85,44 @@ X-CPZ-System=true
 }
 
 // A graphical app takes seconds to map a window; the key must never look dead.
+func TestMediaAppearsAndOpensMenu(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=true
+Categories=Utility;
+`)
+	state := t.TempDir()
+	mnt := filepath.Join(t.TempDir(), "USB")
+	if err := os.Mkdir(mnt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(state, "sda1.mountpoint"), []byte(mnt+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_AUTOMOUNT_STATE", state)
+
+	m := New()
+	m.width, m.height = 45, 13
+	if out := m.View(); !strings.Contains(out, "USB") {
+		t.Fatalf("media missing from Home:\n%s", out)
+	}
+	if len(m.list.Items) == 0 || !strings.HasPrefix(m.list.Items[0].ID, "media:") {
+		t.Fatalf("media is not first: %#v", m.list.Items)
+	}
+	m.list.Cursor = 0
+	nm, _ := m.open()
+	m = nm.(Model)
+	if m.view != viewMedia {
+		t.Fatalf("view = %v, want media", m.view)
+	}
+	if out := m.View(); !strings.Contains(out, "Розмонтувати") {
+		t.Fatalf("media menu missing Unmount:\n%s", out)
+	}
+}
+
 func TestGraphicalLaunchShowsStarting(t *testing.T) {
 	setupApps(t, `[Desktop Entry]
 Type=Application

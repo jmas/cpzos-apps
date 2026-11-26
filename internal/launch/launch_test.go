@@ -34,6 +34,16 @@ func TestExpandIcon(t *testing.T) {
 	}
 }
 
+func TestExpandTargetDocuments(t *testing.T) {
+	argv, err := ExpandTarget("viewer %f", "Viewer", "v.desktop", "", "", "/media/a b.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(argv, "|") != "viewer|/media/a b.txt" {
+		t.Fatalf("got %#v", argv)
+	}
+}
+
 func TestExpandRejectsDocuments(t *testing.T) {
 	for _, code := range []string{"%f", "%F", "%u", "%U"} {
 		if _, err := Expand("player "+code, "P", "p.desktop", "", ""); err == nil {

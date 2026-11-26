@@ -7,6 +7,7 @@ Comment[uk]=Двопанельний файловий менеджер для т
 Exec=/usr/bin/mc
 Terminal=true
 Categories=Utility;FileManager;ConsoleOnly;
+MimeType=inode/directory;
 Keywords=files;manager;commander;mc;file manager;
 Icon=system-file-manager
 X-CPZ-Contract=1

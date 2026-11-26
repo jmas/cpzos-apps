@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/jmas/cpzos-apps/internal/home"
 	"github.com/jmas/cpzos-apps/internal/i18n"
 	"github.com/jmas/cpzos-apps/internal/launch"
+	"github.com/jmas/cpzos-apps/internal/openwith"
 	"github.com/jmas/cpzos-apps/internal/pacman"
 	"github.com/jmas/cpzos-apps/internal/roms"
 	"github.com/jmas/cpzos-apps/internal/settings"
@@ -57,6 +59,8 @@ func run(args []string) int {
 		return runSettings(args[1:], tr)
 	case "roms":
 		return runRoms(args[1:], tr)
+	case "open":
+		return runOpen(args[1:], tr)
 	case "run":
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
@@ -78,7 +82,7 @@ func run(args []string) int {
 		}
 		return exitOK
 	case "version":
-		fmt.Println("cpz-app 0.2.2")
+		fmt.Println("cpz-app 0.3.0")
 		return exitOK
 	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
@@ -379,6 +383,65 @@ func mapExit(code int) int {
 	default:
 		return exitFailed
 	}
+}
+
+// --- open-with -----------------------------------------------------------
+
+func runOpen(args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet("open", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	with := fs.String("with", "", "desktop id of the handler")
+	list := fs.Bool("list", false, "list handlers instead of opening")
+	if err := fs.Parse(reorder(args, map[string]bool{"with": true})); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	path, err := filepath.Abs(fs.Arg(0))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", err.Error()))
+		return exitFailed
+	}
+	if *list {
+		for _, h := range openwith.Candidates(path, tr.Lang) {
+			mark := " "
+			if h.Default {
+				mark = "*"
+			}
+			fmt.Printf("%s %s\t%s\n", mark, h.ID, h.Name)
+		}
+		return exitOK
+	}
+	var handler openwith.Handler
+	var ok bool
+	if *with != "" {
+		handler, ok = openwith.Find(*with, path, tr.Lang)
+	} else {
+		handler, ok = openwith.Default(path, tr.Lang)
+	}
+	if !ok {
+		fmt.Fprintln(os.Stderr, tr.T("media.no_handler"))
+		return exitUnknown
+	}
+	spec, err := openwith.Spec(handler, path, tr.Lang)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", err.Error()))
+		return exitFailed
+	}
+	if spec.Terminal {
+		if err := launch.NewTab(spec); err != nil {
+			fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", err.Error()))
+			return exitFailed
+		}
+		return exitOK
+	}
+	if _, err := launch.Start(spec); err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", err.Error()))
+		return exitFailed
+	}
+	return exitOK
 }
 
 // --- roms ----------------------------------------------------------------

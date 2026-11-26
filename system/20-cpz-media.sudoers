@@ -1,0 +1,2 @@
+# Allow the session user to unmount media through the validated helper only.
+cpz ALL=(root) NOPASSWD: /usr/lib/cpz/media-umount

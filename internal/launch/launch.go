@@ -42,6 +42,7 @@ type Spec struct {
 	ID       string
 	Path     string
 	Terminal bool
+	Dir      string
 	Env      []string
 }
 
@@ -62,6 +63,12 @@ func FromEntry(e apps.Entry, lang string) (Spec, error) {
 
 // Expand parses an Exec line and expands the supported field codes.
 func Expand(execLine, name, id, icon, path string) ([]string, error) {
+	return ExpandTarget(execLine, name, id, icon, path, "")
+}
+
+// ExpandTarget is Expand with a document target for %f/%F/%u/%U. It is used by
+// the open-with layer; the app launcher still calls Expand with no target.
+func ExpandTarget(execLine, name, id, icon, path, target string) ([]string, error) {
 	parts, err := split(execLine)
 	if err != nil {
 		return nil, err
@@ -70,7 +77,10 @@ func Expand(execLine, name, id, icon, path string) ([]string, error) {
 	for _, p := range parts {
 		switch p {
 		case "%f", "%F", "%u", "%U":
-			return nil, ErrNoDocument
+			if target == "" {
+				return nil, ErrNoDocument
+			}
+			out = append(out, target)
 		case "%i":
 			if icon != "" {
 				out = append(out, "--icon", icon)
@@ -151,6 +161,7 @@ func NewTab(spec Spec) error {
 	if os.Getenv("TMUX") == "" {
 		_ = os.Remove(file)
 		cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
+		cmd.Dir = spec.Dir
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 		return cmd.Start()
 	}
@@ -159,7 +170,12 @@ func NewTab(spec Spec) error {
 		_ = os.Remove(file)
 		return err
 	}
-	cmd := exec.Command("tmux", "-L", "cpz", "new-window", "-n", windowName(spec.Name), self, "run", file, windowName(spec.Name))
+	args := []string{"-L", "cpz", "new-window", "-n", windowName(spec.Name)}
+	if spec.Dir != "" {
+		args = append(args, "-c", spec.Dir)
+	}
+	args = append(args, self, "run", file, windowName(spec.Name))
+	cmd := exec.Command("tmux", args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(file)
 		return fmt.Errorf("tmux: %s", strings.TrimSpace(string(out)))
@@ -205,6 +221,7 @@ func Start(spec Spec) (*Process, error) {
 		return nil, err
 	}
 	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
+	cmd.Dir = spec.Dir
 	cmd.Stdin = nil
 	cmd.Stdout, cmd.Stderr = logFile, logFile
 	cmd.Env = append(os.Environ(), spec.Env...)
