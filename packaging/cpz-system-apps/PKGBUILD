@@ -1,7 +1,7 @@
 # Maintainer: CPZ <cpz-ui@jmas.github.io>
 
 pkgname=cpz-system-apps
-pkgver=0.1.4
+pkgver=0.1.5
 pkgrel=1
 pkgdesc="CPZ system apps: Home, Apps Manager, Settings, Terminal and the package helper"
 arch=('aarch64')

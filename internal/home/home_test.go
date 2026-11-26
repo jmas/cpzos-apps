@@ -54,6 +54,35 @@ Categories=Utility;
 	}
 }
 
+// Home is not a shop: an app that only exists in the catalog has no desktop
+// entry and cannot start, so it must never appear there.
+func TestCatalogOnlyAppHidden(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=true
+Categories=Utility;
+X-CPZ-System=true
+`)
+	dir := os.Getenv("XDG_DATA_HOME")
+	cat := filepath.Join(dir, "apps.json")
+	body := `{"version":1,"generated":"2026-11-26T10:00:00Z","contract":1,"apps":[{"id":"doom.desktop","package":"cpz-app-doom","version":"1.0","name":{"en":"Doom","uk":"Doom"},"categories":["Game"],"terminal":false,"system":false,"size":1,"contract":1}]}`
+	if err := os.WriteFile(cat, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_CATALOG", cat)
+	m := New()
+	m.width, m.height = 45, 13
+	if out := m.View(); strings.Contains(out, "Doom") {
+		t.Fatalf("catalog-only app listed on Home:\n%s", out)
+	}
+	if out := m.View(); !strings.Contains(out, "Демо") {
+		t.Fatalf("installed app missing from Home:\n%s", out)
+	}
+}
+
 func TestShiftLetterStartsSearch(t *testing.T) {
 	setupApps(t, `[Desktop Entry]
 Type=Application

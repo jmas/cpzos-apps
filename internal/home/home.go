@@ -48,9 +48,13 @@ func New() Model {
 	all := apps.Build(lang, entries, idx)
 	kept := all[:0]
 	for _, a := range all {
-		if a.ID != ownID {
-			kept = append(kept, a)
+		// Home shows what the system really has: a catalog record alone is an
+		// app that is not installed yet. Installing is Apps Manager's job, so
+		// a user never lands on an app that cannot start.
+		if !a.Installed || a.ID == ownID {
+			continue
 		}
+		kept = append(kept, a)
 	}
 	m := Model{lang: lang, tr: tr, width: 45, height: 13, all: kept}
 	m.search.Prompt = tr.T("home.search")
