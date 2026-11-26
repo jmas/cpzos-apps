@@ -37,17 +37,15 @@ func Kind(err error) int {
 	return 1
 }
 
-// Run executes one helper verb.
-func Run(ctx context.Context, verb, pkg string) (string, error) {
+// Run executes one helper verb. Empty arguments are omitted, so callers can
+// pass an optional package or option without a branch.
+func Run(ctx context.Context, verb string, extra ...string) (string, error) {
 	path := os.Getenv("CPZ_APP_INSTALL")
 	direct := path != ""
 	if !direct {
 		path = Helper
 	}
-	args := []string{verb}
-	if pkg != "" {
-		args = append(args, pkg)
-	}
+	args := helperArgs(verb, extra...)
 
 	var cmd *exec.Cmd
 	if direct || os.Geteuid() == 0 {
@@ -70,6 +68,17 @@ func Run(ctx context.Context, verb, pkg string) (string, error) {
 		return out, err
 	}
 	return out, nil
+}
+
+func helperArgs(verb string, extra ...string) []string {
+	args := make([]string, 0, len(extra)+1)
+	args = append(args, verb)
+	for _, a := range extra {
+		if a != "" {
+			args = append(args, a)
+		}
+	}
+	return args
 }
 
 func tail(s string, n int) string {

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=NBSDGAMES!
+Name[uk]=NBSDGAMES!
+Comment=A collection of small text games
+Comment[uk]=Збірка невеликих текстових ігор
+Exec=/usr/bin/nbsdgames
+Terminal=true
+Categories=Game;ArcadeGame;
+Keywords=nbsdgames;text;terminal;arcade;puzzle;game;
+Keywords[uk]=nbsdgames;текстові;термінал;аркада;пазл;гра;
+Icon=nbsdgames
+X-CPZ-Contract=1

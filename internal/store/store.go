@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -62,6 +63,17 @@ type ownerMsg struct {
 	version string
 }
 
+type launchedMsg struct {
+	name string
+	proc *launch.Process
+	err  error
+}
+
+type launchDoneMsg struct {
+	name string
+	err  error
+}
+
 // Model is Apps Manager.
 type Model struct {
 	lang   string
@@ -88,6 +100,12 @@ type Model struct {
 	pending  actionKind
 	working  string
 	returnTo view
+
+	// A graphical app owns the tab while it starts. Refuse another launch
+	// until it exits; the list behind it stays live but cannot spawn a second
+	// client over the first.
+	startingID   string
+	startingName string
 }
 
 // New builds the model from the installed catalog, synchronously; it reads
@@ -129,7 +147,7 @@ func refreshCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		out, err := pacman.Run(ctx, "refresh-catalog", "")
+		out, err := pacman.Run(ctx, "refresh-catalog")
 		return refreshMsg{err: err, out: out}
 	}
 }
@@ -323,6 +341,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.reload()
 		m.status = m.tr.T("apps.status.refreshed")
+		return m, nil
+	case launchedMsg:
+		if msg.err != nil {
+			m.startingID, m.startingName = "", ""
+			if errors.Is(msg.err, launch.ErrRunning) {
+				m.status = m.tr.T("apps.status.running", "name", msg.name)
+			} else {
+				m.status = m.tr.T("apps.status.failed", "error", msg.err.Error())
+			}
+			return m, nil
+		}
+		return m, waitLaunch(msg.proc)
+	case launchDoneMsg:
+		m.startingID, m.startingName = "", ""
+		if msg.err != nil {
+			m.status = m.tr.T("apps.status.failed", "error", msg.err.Error())
+		} else if m.status == m.tr.T("apps.status.starting", "name", msg.name) {
+			m.status = ""
+		}
 		return m, nil
 	case ownerMsg:
 		if m.view == viewDetail && m.detail.ID == msg.id {
@@ -588,6 +625,10 @@ func (m Model) handleDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) openDetail() (tea.Model, tea.Cmd) {
+	if m.startingID != "" {
+		m.status = m.tr.T("apps.status.busy_launch", "name", m.startingName)
+		return m, nil
+	}
 	a := m.detail
 	argv, err := launch.Expand(a.Exec, a.Name, a.ID, a.Icon, a.Path)
 	if err != nil {
@@ -596,14 +637,26 @@ func (m Model) openDetail() (tea.Model, tea.Cmd) {
 	}
 	spec := launch.Spec{Argv: argv, Name: a.Name, ID: a.ID, Path: a.Path}
 	if a.Terminal {
-		err = launch.NewTab(spec)
-	} else {
-		err = launch.Start(spec)
+		if err := launch.NewTab(spec); err != nil {
+			m.status = m.tr.T("apps.status.failed", "error", err.Error())
+		}
+		return m, nil
 	}
-	if err != nil {
-		m.status = m.tr.T("apps.status.failed", "error", err.Error())
+	// A graphical app may take seconds to map its window. Say that it is
+	// starting before spawning it, and keep the message until it exits. While
+	// it is set, another Open is refused.
+	m.startingID, m.startingName = a.ID, a.Name
+	m.status = m.tr.T("apps.status.starting", "name", a.Name)
+	return m, func() tea.Msg {
+		proc, err := launch.Start(spec)
+		return launchedMsg{name: a.Name, proc: proc, err: err}
 	}
-	return m, nil
+}
+
+func waitLaunch(p *launch.Process) tea.Cmd {
+	return func() tea.Msg {
+		return launchDoneMsg{name: p.Name(), err: p.Wait()}
+	}
 }
 
 func (m Model) handleConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -639,9 +692,12 @@ func opCmd(kind actionKind, pkg string) tea.Cmd {
 			verb = "install"
 		case actRemove:
 			verb = "remove"
-		case actUpdate:
-			verb = "refresh-catalog"
-			pkg = ""
+		}
+		if kind == actUpdate {
+			// The user asked for a refresh: bypass the automatic 10-minute
+			// rate limit in the helper.
+			out, err := pacman.Run(ctx, "refresh-catalog", "--force")
+			return opMsg{kind: kind, out: out, err: err}
 		}
 		if verb == "" {
 			return opMsg{kind: actNone}

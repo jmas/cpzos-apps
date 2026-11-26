@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=GNU Chess
+Name[uk]=GNU Chess
+Comment=Play chess against the computer in the terminal
+Comment[uk]=Шахи проти комп'ютера в терміналі
+Exec=/usr/bin/gnuchess
+Terminal=true
+Categories=Game;BoardGame;
+Keywords=chess;gnuchess;board;strategy;game;
+Keywords[uk]=шахи;gnuchess;дошка;стратегія;гра;
+Icon=applications-games
+X-CPZ-Contract=1

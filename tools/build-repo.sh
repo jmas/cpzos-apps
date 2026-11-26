@@ -41,7 +41,10 @@ done
 echo "==> generating the catalog"
 go run ./tools/build-catalog -packages "$OUT/pkgs" -out packaging/cpz-apps-catalog/apps.json
 
-CATALOG_VERSION="${CATALOG_VERSION:-$(date -u +%Y.%m.%d)}"
+# Include the UTC time: a date-only version makes two catalog builds from the
+# same day compare equal, so pacman -S skips the second and devices keep stale
+# data forever.
+CATALOG_VERSION="${CATALOG_VERSION:-$(date -u +%Y.%m.%d.%H%M%S)}"
 echo "==> building cpz-apps-catalog $CATALOG_VERSION"
 (
     cd packaging/cpz-apps-catalog

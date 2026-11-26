@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jmas/cpzos-apps/internal/apps"
+	"github.com/jmas/cpzos-apps/internal/launch"
 	"github.com/jmas/cpzos-apps/internal/pacman"
 	"github.com/jmas/cpzos-apps/internal/tui"
 )
@@ -195,6 +196,49 @@ func TestSystemAppHasNoRemove(t *testing.T) {
 	}
 }
 
+func TestGraphicalOpenShowsStarting(t *testing.T) {
+	setup(t)
+	m := New()
+	m.detail = apps.App{
+		ID: "doom.desktop", Name: "Doom", Exec: "true", Installed: true,
+	}
+	nm, cmd := m.openDetail()
+	m = nm.(Model)
+	if cmd == nil {
+		t.Fatal("graphical open returned no command")
+	}
+	if out := m.View(); !strings.Contains(out, "Запускаю Doom…") {
+		t.Fatalf("starting status missing:\n%s", out)
+	}
+}
+
+func TestGraphicalOpenBlockedWhileStarting(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 13
+	m.detail = apps.App{ID: "doom.desktop", Name: "Doom", Exec: "true", Installed: true}
+	m.startingID, m.startingName = "doom.desktop", "Doom"
+	nm, cmd := m.openDetail()
+	m = nm.(Model)
+	if cmd != nil {
+		t.Fatal("second open started while the first was in flight")
+	}
+	if out := m.View(); !strings.Contains(out, "Зачекайте, Doom запускається") {
+		t.Fatalf("busy launch status missing:\n%s", out)
+	}
+}
+
+func TestAlreadyRunningOpenShowsStatus(t *testing.T) {
+	setup(t)
+	m := New()
+	m.width, m.height = 45, 13
+	nm, _ := m.Update(launchedMsg{name: "Doom", err: launch.ErrRunning})
+	m = nm.(Model)
+	if out := m.View(); !strings.Contains(out, "Doom уже запущено") {
+		t.Fatalf("already-running status missing:\n%s", out)
+	}
+}
+
 func TestUpdateConfirmCancels(t *testing.T) {
 	setup(t)
 	m := New()
@@ -208,6 +252,57 @@ func TestUpdateConfirmCancels(t *testing.T) {
 	m = nm.(Model)
 	if m.view != viewMenu {
 		t.Fatalf("Esc in confirm -> %v", m.view)
+	}
+}
+
+func helperRecorder(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "args")
+	helper := filepath.Join(dir, "app-install")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CPZ_ARGS_LOG\"\n"
+	if err := os.WriteFile(helper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_APP_INSTALL", helper)
+	t.Setenv("CPZ_ARGS_LOG", logPath)
+	return logPath
+}
+
+func recordedArgs(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func TestManualUpdateForcesRefresh(t *testing.T) {
+	logPath := helperRecorder(t)
+	msg, ok := opCmd(actUpdate, "")().(opMsg)
+	if !ok {
+		t.Fatal("opCmd returned a non-opMsg")
+	}
+	if msg.err != nil {
+		t.Fatalf("opCmd: %v", msg.err)
+	}
+	if got, want := recordedArgs(t, logPath), "refresh-catalog\n--force\n"; got != want {
+		t.Fatalf("helper args = %q, want %q", got, want)
+	}
+}
+
+func TestAutomaticRefreshKeepsTheRateLimit(t *testing.T) {
+	logPath := helperRecorder(t)
+	msg, ok := refreshCmd()().(refreshMsg)
+	if !ok {
+		t.Fatal("refreshCmd returned a non-refreshMsg")
+	}
+	if msg.err != nil {
+		t.Fatalf("refreshCmd: %v", msg.err)
+	}
+	if got, want := recordedArgs(t, logPath), "refresh-catalog\n"; got != want {
+		t.Fatalf("helper args = %q, want %q", got, want)
 	}
 }
 

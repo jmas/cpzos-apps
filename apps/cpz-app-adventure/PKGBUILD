@@ -1,0 +1,18 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-app-adventure
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Colossal Cave Adventure for CPZ Games"
+arch=('any')
+url="https://sourceforge.net/projects/bsd-games"
+license=('BSD')
+depends=('bsd-games')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-adventure.desktop" \
+        "$pkgdir/usr/share/applications/cpz-adventure.desktop"
+}

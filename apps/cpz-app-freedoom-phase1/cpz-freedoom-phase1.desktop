@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Freedoom: Phase 1
+Name[uk]=Freedoom: Phase 1
+Comment=Free Doom-compatible game, Phase 1
+Comment[uk]=Вільна гра, сумісна з Doom, фаза 1
+Exec=/usr/bin/env SDL_VIDEODRIVER=wayland SDL_AUDIODRIVER=alsa /usr/bin/doomretro -iwad /usr/share/cpz/freedoom/freedoom1.wad
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=freedoom;doom;fps;shooter;game;phase 1;
+Keywords[uk]=freedoom;doom;шутер;гра;фаза 1;
+Icon=doomretro
+X-CPZ-Contract=1

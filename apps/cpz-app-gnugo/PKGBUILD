@@ -1,0 +1,21 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+#
+# A 19x19 board does not fit the 45x12 panel. The entry starts a 9x9 game,
+# which is the largest board that stays readable on the device.
+
+pkgname=cpz-app-gnugo
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="GNU Go entry for CPZ Games"
+arch=('any')
+url="https://www.gnu.org/software/gnugo/"
+license=('GPL-3.0-or-later')
+depends=('gnugo')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-gnugo.desktop" \
+        "$pkgdir/usr/share/applications/cpz-gnugo.desktop"
+}

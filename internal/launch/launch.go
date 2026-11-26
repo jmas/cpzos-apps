@@ -166,42 +166,76 @@ func NewTab(spec Spec) error {
 	return nil
 }
 
+// Process is a started graphical client. The caller must call Wait to reap
+// it; until then it is still running, which is what a launching indicator
+// needs to know.
+type Process struct {
+	name string
+	cmd  *exec.Cmd
+	log  *os.File
+	lock *runLock
+}
+
+// Name is the desktop-entry name used in messages.
+func (p *Process) Name() string { return p.name }
+
 // Start launches a graphical client as a child of the session. It must not
-// consume the Home terminal, so stdin is detached; errors go to a log file and
-// to the tmux message line, otherwise a failed game just does nothing.
-func Start(spec Spec) error {
+// consume the Home terminal, so stdin is detached; output goes to a log file.
+// A failed start is returned at once, but the app runs on: Wait reports the
+// exit and shows a failure in the tmux message line.
+//
+// A graphical entry is single-instance across tabs. The lock is passed to the
+// child as an extra file, so it survives the launcher but is released when the
+// app exits.
+func Start(spec Spec) (*Process, error) {
 	if len(spec.Argv) == 0 {
-		return errors.New("empty command")
+		return nil, errors.New("empty command")
 	}
 	if _, err := exec.LookPath(spec.Argv[0]); err != nil {
-		return err
+		return nil, err
+	}
+	lock, err := claim(spec.ID)
+	if err != nil {
+		return nil, err
 	}
 	logFile, err := os.CreateTemp(specDir(), "app.")
 	if err != nil {
-		return err
+		lock.release()
+		return nil, err
 	}
 	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
 	cmd.Stdin = nil
 	cmd.Stdout, cmd.Stderr = logFile, logFile
 	cmd.Env = os.Environ()
+	if lock != nil {
+		cmd.ExtraFiles = []*os.File{lock.file}
+	}
 	if err := cmd.Start(); err != nil {
+		lock.release()
 		logFile.Close()
 		os.Remove(logFile.Name())
-		return err
+		return nil, err
 	}
-	go func() {
-		runErr := cmd.Wait()
-		_ = logFile.Close()
-		if runErr == nil {
-			_ = os.Remove(logFile.Name())
-			return
-		}
-		notifyFailure(spec.Name, logFile.Name(), runErr)
-	}()
-	return nil
+	return &Process{name: spec.Name, cmd: cmd, log: logFile, lock: lock}, nil
 }
 
-func notifyFailure(name, logPath string, runErr error) {
+// Wait blocks until the app exits. A clean exit clears the log; a failure is
+// reported in the tmux message line and returned with the log's last line so
+// the launcher can replace its launching status with a useful reason.
+func (p *Process) Wait() error {
+	runErr := p.cmd.Wait()
+	p.lock.release()
+	_ = p.log.Close()
+	if runErr == nil {
+		_ = os.Remove(p.log.Name())
+		return nil
+	}
+	cause := failureCause(p.log.Name(), runErr)
+	notifyFailure(p.name, cause)
+	return errors.New(cause)
+}
+
+func failureCause(logPath string, runErr error) string {
 	line := ""
 	if b, err := os.ReadFile(logPath); err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
@@ -210,11 +244,16 @@ func notifyFailure(name, logPath string, runErr error) {
 			}
 		}
 	}
+	if line == "" && runErr != nil {
+		line = runErr.Error()
+	}
+	return line
+}
+
+func notifyFailure(name, cause string) {
 	msg := "App failed: " + name
-	if line != "" {
-		msg += ": " + line
-	} else if runErr != nil {
-		msg += ": " + runErr.Error()
+	if cause != "" {
+		msg += ": " + cause
 	}
 	if len(msg) > 200 {
 		msg = msg[:200]
@@ -310,6 +349,9 @@ func selfPath() (string, error) {
 }
 
 func specDir() string {
+	if d := os.Getenv("CPZ_RUN_DIR"); d != "" {
+		return d
+	}
 	if st, err := os.Stat("/run/cpz"); err == nil && st.IsDir() {
 		return "/run/cpz"
 	}

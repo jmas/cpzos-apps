@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jmas/cpzos-apps/internal/launch"
 	"github.com/jmas/cpzos-apps/internal/tui"
 )
 
@@ -80,6 +81,97 @@ X-CPZ-System=true
 	}
 	if out := m.View(); !strings.Contains(out, "Демо") {
 		t.Fatalf("installed app missing from Home:\n%s", out)
+	}
+}
+
+// A graphical app takes seconds to map a window; the key must never look dead.
+func TestGraphicalLaunchShowsStarting(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=false
+Categories=Utility;
+X-CPZ-System=true
+`)
+	m := New()
+	m.width, m.height = 45, 13
+	nm, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = *(nm.(*Model))
+	if cmd == nil {
+		t.Fatal("graphical launch returned no command")
+	}
+	if out := m.View(); !strings.Contains(out, "Запускаю Демо…") {
+		t.Fatalf("starting status missing:\n%s", out)
+	}
+}
+
+func TestGraphicalLaunchFailureShowsReason(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=/nonexistent-cpz-app
+Terminal=false
+Categories=Utility;
+X-CPZ-System=true
+`)
+	m := New()
+	m.width, m.height = 45, 13
+	nm, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = *(nm.(*Model))
+	msg := cmd()
+	nm, _ = m.Update(msg)
+	m = nm.(Model)
+	if out := m.View(); !strings.Contains(out, "Помилка") || !strings.Contains(out, "nonexistent-cpz-app") {
+		t.Fatalf("launch failure not shown:\n%s", out)
+	}
+}
+
+func TestSecondLaunchBlockedWhileStarting(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=false
+Categories=Utility;
+X-CPZ-System=true
+`)
+	m := New()
+	m.width, m.height = 45, 13
+	nm, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = *(nm.(*Model))
+	if cmd == nil {
+		t.Fatal("first launch returned no command")
+	}
+	nm, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = *(nm.(*Model))
+	if cmd != nil {
+		t.Fatal("second launch started while the first was in flight")
+	}
+	if out := m.View(); !strings.Contains(out, "Зачекайте, Демо запускається") {
+		t.Fatalf("busy launch status missing:\n%s", out)
+	}
+}
+
+func TestAlreadyRunningStatus(t *testing.T) {
+	setupApps(t, `[Desktop Entry]
+Type=Application
+Name=Demo
+Name[uk]=Демо
+Exec=true
+Terminal=false
+Categories=Utility;
+X-CPZ-System=true
+`)
+	m := New()
+	m.width, m.height = 45, 13
+	nm, _ := m.Update(launchedMsg{name: "Демо", err: launch.ErrRunning})
+	m = nm.(Model)
+	if out := m.View(); !strings.Contains(out, "Демо уже запущено") {
+		t.Fatalf("already-running status missing:\n%s", out)
 	}
 }
 

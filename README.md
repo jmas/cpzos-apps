@@ -31,13 +31,20 @@ apps. All four follow the binding rules in `cpz-arch/docs/TUI-CONTRACT.md`:
 ```sh
 cpz-app home       # new tab: choose an app
 cpz-app apps       # Apps Manager
-cpz-app settings   # Settings, currently About system
+cpz-app settings   # Settings: update system and About
 cpz-app run FILE NAME  # internal: run an argv file and return to Home
 cpz-app exec FILE      # internal: run an argv file (tmux-safe, no shell)
 ```
 
 The `run` supervisor is what makes quitting an app land back on Home instead
 of an empty tab. It has no input loop, so the app owns the terminal.
+
+Home and Apps Manager show `Starting <name>…` while a graphical app (Freedoom,
+for example) is loading and replace it with the failure reason if the child
+exits non-zero, so a slow launch never looks like a dead key. A graphical
+entry is single-instance across tabs: the same tab refuses a second launch
+until the first exits, and another tab reports `already running`. Terminal
+entries are tabs and stay multi-instance.
 
 Terminal is `/usr/share/applications/cpz-terminal.desktop` (`Exec=bash -l`,
 `Terminal=true`, `X-CPZ-System=true`); it needs no code in the binary.
@@ -51,11 +58,22 @@ cpz-app apps list [--installed|--available] [--category C] [--query Q] [--json]
 cpz-app apps install <package|desktop-id> [--yes] [--json]
 cpz-app apps remove  <package|desktop-id> [--yes] [--json]
 cpz-app apps update  [--yes] [--json]
-cpz-app settings about [--json]
+cpz-app settings about  [--json]
+cpz-app settings update [--yes] [--json]
 ```
 
 Exit codes: 0 ok, 1 failed, 2 usage, 3 needs `--yes`, 4 unknown app,
 5 protected, 6 offline.
+
+`settings update` and the Settings **Update system** row run a full
+`pacman -Syu` through the helper, which upgrades the UI, the system apps and
+the catalog. The helper ignores `linux-rpi` and `raspberrypi-bootloader`: the
+boot files are generated into the FAT partition by the image build, so a new
+kernel or bootloader needs a new image, not an in-place transaction.
+
+`apps update` and the Apps Manager `Update app list` row pass `--force`, so an
+explicit update always runs. Only the automatic refresh on entry is limited to
+one attempt per 10 minutes.
 
 ## Build
 
@@ -69,6 +87,14 @@ make package      # Arch environment: packages + catalog + dist/repo
 device for testing, point a `[cpz-apps]` repository at `dist/repo` and run
 `pacman -Sy cpz-system-apps cpz-apps-catalog`.
 
+The UI image does not read this working tree. It installs `cpz-apps-catalog`
+from the configured `[cpz-apps]` repository, so adding a directory under
+`apps/` does nothing until the repository is rebuilt. A local `file://` test
+image also bakes a snapshot of that repository into `/opt/cpz/apps-repo`;
+replace that copy or rebuild the image when `dist/repo` changes. App Manager's
+`Update app list` only installs a newer catalog package, it never generates a
+catalog from source.
+
 ## Catalog
 
 `tools/build-catalog` reads the built packages with `bsdtar`, takes every
@@ -80,6 +106,10 @@ device for testing, point a `[cpz-apps]` repository at `dist/repo` and run
 - the catalog is data only (`depends=()`), which is why the background refresh
   can install it with `-S` without a full upgrade.
 
+The catalog package version is the UTC build time
+(`YYYY.MM.DD.HHMMSS`). A date-only version makes two rebuilds from the same day
+compare equal, so pacman skips the second one and devices keep stale data.
+
 ## Example application
 
 `apps/cpz-app-mc` wraps the Arch `mc` package: it installs only a desktop
@@ -87,15 +117,34 @@ entry and depends on `mc`. The catalog lists it as available; installing it
 through Apps Manager pulls `mc` from the Arch repositories. Removing it removes
 the entry and, if nothing else needs it, `mc`.
 
-`apps/cpz-app-doom` depends on the `doomretro` engine and packages the
-Freedoom data (`freedoom1.wad`, BSD-3-Clause). The entry starts Doom Retro
-with that WAD, so no commercial game data is needed.
+## Games
+
+Every game is its own package, so Apps Manager installs and removes one game
+at a time. The Freedoom entries use the `doomretro` engine and ship only free
+Freedoom data:
+
+- `Freedoom: Phase 1` (`freedoom1.wad`) and `Freedoom: Phase 2`
+  (`freedoom2.wad`) are the Doom- and Doom II-compatible games;
+- `FreeDM` (`freedm.wad`) is the deathmatch WAD for Doom II;
+- `NetHack`, `NBSDGAMES!`, `GNU Chess`, `GNU Go` and
+  `Colossal Cave Adventure` are terminal games that fit the panel.
+
+`GNU Go` starts a 9x9 game because a 19x19 board is wider than the panel.
+Games that need a much larger text grid are deliberately not packaged:
+Dungeon Crawl Stone Soup and Cataclysm: Dark Days Ahead do not fit 45x12, and
+`tty-solitaire` refuses to start below 57x28. The panel is the limit; do not
+add an entry that cannot be played on it.
+
+The catalog name rule is in `CONTRIBUTING.md`: the entry is named after the
+game that actually starts, not its engine. The Freedoom packages are why
+`cpz-app-freedoom-phase1` replaces the old `cpz-app-doom` package.
 
 ## Curation
 
 Pull requests only. One application per PR, with a desktop entry, a PKGBUILD
 and a working install/remove path. No services, no install scripts, no GUI
-toolkits, no telemetry. See `CONTRIBUTING.md`.
+toolkits, no telemetry. Names follow the upstream product name; see the
+**Names** section of `CONTRIBUTING.md`.
 
 ## Layout
 

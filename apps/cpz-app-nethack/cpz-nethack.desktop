@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=NetHack
+Name[uk]=NetHack
+Comment=Single-player dungeon exploration game
+Comment[uk]=Однокористувацька гра-дослідження підземелля
+Exec=/usr/bin/nethack
+Terminal=true
+Categories=Game;RolePlaying;
+Keywords=roguelike;dungeon;rpg;game;
+Keywords[uk]=рогалик;підземелля;гра;
+Icon=applications-games
+X-CPZ-Contract=1

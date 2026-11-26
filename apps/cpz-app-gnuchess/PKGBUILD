@@ -1,0 +1,18 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-app-gnuchess
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="GNU Chess entry for CPZ Games"
+arch=('any')
+url="https://www.gnu.org/software/chess/"
+license=('GPL-3.0-or-later')
+depends=('gnuchess')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-gnuchess.desktop" \
+        "$pkgdir/usr/share/applications/cpz-gnuchess.desktop"
+}

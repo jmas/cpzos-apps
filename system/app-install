@@ -1,7 +1,8 @@
 #!/bin/sh
 # CPZ package helper. The only privileged entry point for Apps Manager.
 #
-#   app-install refresh-catalog
+#   app-install refresh-catalog [--force]
+#   app-install update-system
 #   app-install install <package>
 #   app-install remove  <package>
 #
@@ -20,11 +21,17 @@ log() {
 }
 
 [ "$(id -u)" -eq 0 ] || die "must run as root"
-[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog|install <pkg>|remove <pkg>"
+[ "$#" -ge 1 ] || die "usage: app-install refresh-catalog [--force]|update-system|install <pkg>|remove <pkg>"
 
 case "$1" in
     refresh-catalog)
-        [ "$#" -eq 1 ] || die "refresh-catalog takes no arguments"
+        [ "$#" -le 2 ] || die "refresh-catalog takes only --force"
+        if [ "$#" -eq 2 ] && [ "$2" != "--force" ]; then
+            die "refresh-catalog: unknown option: $2"
+        fi
+        ;;
+    update-system)
+        [ "$#" -eq 1 ] || die "update-system takes no arguments"
         ;;
     install|remove)
         [ "$#" -eq 2 ] || die "$1 takes exactly one package"
@@ -48,9 +55,10 @@ protected() {
 }
 
 refresh_catalog() {
+    force=${1:-}
     mkdir -p /var/lib/cpz
     marker=/var/lib/cpz/refresh
-    if [ -f "$marker" ]; then
+    if [ "$force" != "--force" ] && [ -f "$marker" ]; then
         last=$(stat -c %Y "$marker" 2>/dev/null || printf 0)
         now=$(date +%s)
         if [ $((now - last)) -lt 600 ]; then
@@ -74,6 +82,14 @@ refresh_catalog() {
     fi
 }
 
+full_upgrade() {
+    # The boot kernel and firmware are generated into the FAT partition by the
+    # image build. Updating them inside a running rootfs would install modules
+    # without the matching boot files, so an on-device update keeps the pinned
+    # kernel and bootloader. A new kernel comes with a new image.
+    pacman -Syu --noconfirm --ignore linux-rpi --ignore raspberrypi-bootloader
+}
+
 install_app() {
     pkg=$1
     if protected "$pkg"; then
@@ -82,7 +98,7 @@ install_app() {
     fi
 
     log "install $pkg: full system upgrade first"
-    pacman -Syu --noconfirm
+    full_upgrade
 
     if ! pacman -Si -- "$pkg" 2>/dev/null | grep -Eq '^Repository[[:space:]]*:[[:space:]]*cpz-apps$'; then
         printf 'app-install: not an app from [cpz-apps]: %s\n' "$pkg" >&2
@@ -107,7 +123,11 @@ remove_app() {
 
 case "$1" in
     refresh-catalog)
-        refresh_catalog
+        refresh_catalog "${2:-}"
+        ;;
+    update-system)
+        log "system update"
+        full_upgrade
         ;;
     install)
         install_app "$2"

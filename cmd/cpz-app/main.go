@@ -248,11 +248,14 @@ func appsOp(action string, args []string, tr *i18n.Translator) int {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	verb := action
-	if verb == "update" {
-		verb = "refresh-catalog"
+	var out string
+	var err error
+	if action == "update" {
+		// A command is an explicit request, so skip the automatic rate limit.
+		out, err = pacman.Run(ctx, "refresh-catalog", "--force")
+	} else {
+		out, err = pacman.Run(ctx, action, pkg)
 	}
-	out, err := pacman.Run(ctx, verb, pkg)
 	code := exitOK
 	if err != nil {
 		code = mapExit(pacman.Kind(err))
@@ -376,14 +379,22 @@ func runSettings(args []string, tr *i18n.Translator) int {
 	if len(args) == 0 {
 		return runTUI(settings.New())
 	}
-	if args[0] != "about" {
+	switch args[0] {
+	case "about":
+		return settingsAbout(args[1:], tr)
+	case "update":
+		return settingsUpdate(args[1:], tr)
+	default:
 		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
 		return exitUsage
 	}
+}
+
+func settingsAbout(args []string, tr *i18n.Translator) int {
 	fs := flag.NewFlagSet("about", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	asJSON := fs.Bool("json", false, "machine-readable output")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := fs.Parse(args); err != nil {
 		return exitUsage
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -399,6 +410,60 @@ func runSettings(args []string, tr *i18n.Translator) int {
 	for _, f := range fields {
 		fmt.Printf("%s: %s\n", tr.T(f.Key), f.Value)
 	}
+	return exitOK
+}
+
+func settingsUpdate(args []string, tr *i18n.Translator) int {
+	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	yes := fs.Bool("yes", false, "skip the confirmation")
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	if err := fs.Parse(reorder(args, nil)); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, tr.T("cli.usage"))
+		return exitUsage
+	}
+	if !*yes {
+		if !isTTY() || *asJSON {
+			fmt.Fprintln(os.Stderr, tr.T("cli.needs_yes"))
+			return exitConfirm
+		}
+		fmt.Fprintf(os.Stderr, "%s ", tr.T("cli.confirm_update"))
+		var answer string
+		fmt.Scanln(&answer)
+		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
+			fmt.Fprintln(os.Stderr, tr.T("cli.cancelled"))
+			return exitOK
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	out, err := pacman.Run(ctx, "update-system")
+	code := exitOK
+	if err != nil {
+		code = mapExit(pacman.Kind(err))
+	}
+	if *asJSON {
+		res := opJSON{Schema: 1, Action: "update", OK: err == nil}
+		if err != nil {
+			res.Message = pacman.Reason(out)
+			if res.Message == "" {
+				res.Message = err.Error()
+			}
+		}
+		return writeJSON(res, code)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, tr.T("cli.error", "error", reasonOr(out, err)))
+		return code
+	}
+	if out != "" {
+		fmt.Println(out)
+	}
+	fmt.Println(tr.T("cli.done"))
 	return exitOK
 }
 

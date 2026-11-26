@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=FreeDM
+Name[uk]=FreeDM
+Comment=Free deathmatch game for Doom II
+Comment[uk]=Вільна гра deathmatch для Doom II
+Exec=/usr/bin/env SDL_VIDEODRIVER=wayland SDL_AUDIODRIVER=alsa /usr/bin/doomretro -iwad /usr/share/cpz/freedoom/freedm.wad
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=freedoom;doom;deathmatch;fps;shooter;game;
+Keywords[uk]=freedoom;doom;deathmatch;шутер;гра;
+Icon=doomretro
+X-CPZ-Contract=1

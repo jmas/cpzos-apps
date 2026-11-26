@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Colossal Cave Adventure
+Name[uk]=Colossal Cave Adventure
+Comment=The original 1977 text adventure
+Comment[uk]=Оригінальна текстова пригода 1977 року
+Exec=/usr/bin/adventure
+Terminal=true
+Categories=Game;AdventureGame;
+Keywords=adventure;colossal cave;text;interactive fiction;game;
+Keywords[uk]=пригода;colossal cave;текст;інтерактивна проза;гра;
+Icon=applications-games
+X-CPZ-Contract=1

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Freedoom: Phase 2
+Name[uk]=Freedoom: Phase 2
+Comment=Free Doom II-compatible game, Phase 2
+Comment[uk]=Вільна гра, сумісна з Doom II, фаза 2
+Exec=/usr/bin/env SDL_VIDEODRIVER=wayland SDL_AUDIODRIVER=alsa /usr/bin/doomretro -iwad /usr/share/cpz/freedoom/freedoom2.wad
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=freedoom;doom;doom ii;fps;shooter;game;phase 2;
+Keywords[uk]=freedoom;doom;doom ii;шутер;гра;фаза 2;
+Icon=doomretro
+X-CPZ-Contract=1

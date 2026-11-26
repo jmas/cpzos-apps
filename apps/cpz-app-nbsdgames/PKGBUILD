@@ -1,0 +1,18 @@
+# Maintainer: CPZ <cpz-ui@jmas.github.io>
+
+pkgname=cpz-app-nbsdgames
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="NBSDGAMES! collection for CPZ Games"
+arch=('any')
+url="https://github.com/abakh/nbsdgames"
+license=('LicenseRef-custom')
+depends=('nbsdgames')
+options=('!strip')
+source=()
+sha256sums=()
+
+package() {
+    install -Dm644 "$startdir/cpz-nbsdgames.desktop" \
+        "$pkgdir/usr/share/applications/cpz-nbsdgames.desktop"
+}

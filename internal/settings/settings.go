@@ -2,12 +2,14 @@ package settings
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jmas/cpzos-apps/internal/about"
 	"github.com/jmas/cpzos-apps/internal/i18n"
+	"github.com/jmas/cpzos-apps/internal/pacman"
 	"github.com/jmas/cpzos-apps/internal/tui"
 )
 
@@ -16,23 +18,32 @@ type view int
 const (
 	viewRoot view = iota
 	viewAbout
+	viewConfirm
+	viewUpdating
 )
 
 type aboutMsg struct{ fields []about.Field }
 
-// Model is the Settings app. Today it has one item: About system.
+type updateMsg struct {
+	out string
+	err error
+}
+
+// Model is the Settings app: a system update and the read-only About screen.
 type Model struct {
 	lang   string
 	tr     *i18n.Translator
 	width  int
 	height int
 
-	root  tui.List
-	view  view
-	about tui.List
-	data  []about.Field
-	ready bool
-	help  bool
+	root    tui.List
+	view    view
+	about   tui.List
+	data    []about.Field
+	ready   bool
+	help    bool
+	confirm tui.Confirm
+	status  string
 }
 
 // New builds the root list.
@@ -40,7 +51,10 @@ func New() Model {
 	lang := i18n.System()
 	tr := i18n.For(lang)
 	m := Model{lang: lang, tr: tr, width: 45, height: 13}
-	m.root.SetItems([]tui.Item{{ID: "about", Name: tr.T("settings.about")}})
+	m.root.SetItems([]tui.Item{
+		{ID: "update", Name: tr.T("settings.update")},
+		{ID: "about", Name: tr.T("settings.about")},
+	})
 	return m
 }
 
@@ -63,6 +77,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		m.buildAbout()
 		return m, nil
+	case updateMsg:
+		m.view = viewRoot
+		if msg.err != nil {
+			line := pacman.Reason(msg.out)
+			if line == "" {
+				line = msg.err.Error()
+			}
+			if strings.Contains(msg.out, "lock") {
+				m.status = m.tr.T("settings.update_busy")
+			} else {
+				m.status = m.tr.T("settings.update_failed", "error", line)
+			}
+			return m, nil
+		}
+		// The installed versions may have changed; re-read About in the
+		// background before the user opens it.
+		m.ready = false
+		m.status = m.tr.T("settings.updated")
+		return m, m.Init()
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -77,7 +110,22 @@ func (m *Model) buildAbout() {
 	m.about.SetItems(items)
 }
 
+func (m Model) rows() int {
+	rows := m.height - 1
+	if m.status != "" {
+		rows--
+	}
+	if rows < 1 {
+		rows = 1
+	}
+	return rows
+}
+
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A package transaction cannot be cancelled safely from the UI.
+	if m.view == viewUpdating {
+		return m, nil
+	}
 	if m.help {
 		switch tui.ActionOf(msg, false) {
 		case tui.ActionBack, tui.ActionHelp, tui.ActionConfirm, tui.ActionQuit:
@@ -85,10 +133,24 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	rows := m.height - 1
-	if rows < 1 {
-		rows = 1
+	if m.view == viewConfirm {
+		done, ok := m.confirm.Handle(tui.ActionOf(msg, false))
+		if !done {
+			return m, nil
+		}
+		if !ok {
+			m.view = viewRoot
+			return m, nil
+		}
+		m.status = ""
+		m.view = viewUpdating
+		return m, updateCmd()
 	}
+	if m.status != "" {
+		m.status = ""
+	}
+
+	rows := m.rows()
 	list := &m.root
 	if m.view == viewAbout {
 		list = &m.about
@@ -117,11 +179,30 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tui.ActionQuit:
 		return m, tea.Quit
 	case tui.ActionConfirm:
-		if m.view == viewRoot {
+		if m.view != viewRoot {
+			return m, nil
+		}
+		item, ok := m.root.Selected()
+		if !ok {
+			return m, nil
+		}
+		if item.ID == "update" {
+			m.confirm.Open(m.tr.T("settings.confirm.update"))
+			m.view = viewConfirm
+		} else {
 			m.view = viewAbout
 		}
 	}
 	return m, nil
+}
+
+func updateCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		out, err := pacman.Run(ctx, "update-system")
+		return updateMsg{out: out, err: err}
+	}
 }
 
 func (m Model) View() string {
@@ -129,21 +210,26 @@ func (m Model) View() string {
 		Width:  m.width,
 		Height: m.height,
 		Title:  m.tr.T("settings.title"),
+		Status: m.status,
 	}
 	if m.help {
 		s.Body = tui.HelpBody(m.tr.T("help.title"), m.tr.T("help.body"))
 		return s.Render()
 	}
-	rows := m.height - 1
-	if m.view == viewAbout {
+	switch m.view {
+	case viewAbout:
 		s.Context = m.tr.T("settings.about")
 		if !m.ready {
 			s.Body = []string{tui.DimStyle.Render(m.tr.T("settings.loading"))}
 		} else {
-			s.Body = m.about.Render(m.width, rows)
+			s.Body = m.about.Render(m.width, m.rows())
 		}
-		return s.Render()
+	case viewConfirm:
+		s.Body = m.confirm.Render(tui.YesNo{Yes: m.tr.T("common.yes"), No: m.tr.T("common.no")})
+	case viewUpdating:
+		s.Body = []string{m.tr.T("settings.updating")}
+	default:
+		s.Body = m.root.Render(m.width, m.rows())
 	}
-	s.Body = m.root.Render(m.width, rows)
 	return s.Render()
 }

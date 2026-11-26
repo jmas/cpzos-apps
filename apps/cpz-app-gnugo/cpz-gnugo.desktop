@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=GNU Go
+Name[uk]=GNU Go
+Comment=Play 9x9 Go against the computer in the terminal
+Comment[uk]=Ґо 9x9 проти комп'ютера в терміналі
+Exec=/usr/bin/gnugo --boardsize 9
+Terminal=true
+Categories=Game;BoardGame;
+Keywords=go;gnugo;weiqi;baduk;board;strategy;game;
+Keywords[uk]=ґо;go;gnugo;дошка;стратегія;гра;
+Icon=applications-games
+X-CPZ-Contract=1

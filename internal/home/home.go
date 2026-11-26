@@ -1,6 +1,7 @@
 package home
 
 import (
+	"errors"
 	"os"
 	"strings"
 
@@ -16,6 +17,19 @@ import (
 // ownID keeps Home out of its own list.
 const ownID = "cpz-app-home.desktop"
 
+// launchedMsg is the result of spawning a graphical app off the event loop.
+type launchedMsg struct {
+	name string
+	proc *launch.Process
+	err  error
+}
+
+// launchDoneMsg says that a started graphical app exited.
+type launchDoneMsg struct {
+	name string
+	err  error
+}
+
 // Model is the list shown in a new tab. It replaces its window with the chosen
 // app, so a tab is the app the user picked.
 type Model struct {
@@ -29,6 +43,12 @@ type Model struct {
 	search tui.Input
 	help   bool
 	status string
+
+	// A graphical app owns the tab while it starts. Refuse another launch from
+	// the same tab until it exits, even though this Home stays on screen until
+	// the app maps its window.
+	startingID   string
+	startingName string
 }
 
 // New loads the installed entries; call it after the first frame budget allows
@@ -71,6 +91,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	case launchedMsg:
+		if msg.err != nil {
+			m.startingID, m.startingName = "", ""
+			if errors.Is(msg.err, launch.ErrRunning) {
+				m.status = m.tr.T("apps.status.running", "name", msg.name)
+			} else {
+				m.status = m.tr.T("apps.status.failed", "error", msg.err.Error())
+			}
+			return m, nil
+		}
+		return m, waitLaunch(msg.proc)
+	case launchDoneMsg:
+		m.startingID, m.startingName = "", ""
+		if msg.err != nil {
+			m.status = m.tr.T("apps.status.failed", "error", msg.err.Error())
+		} else if m.status == m.tr.T("apps.status.starting", "name", msg.name) {
+			m.status = ""
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -132,15 +171,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tui.ActionBack, tui.ActionQuit:
 		return m, tea.Quit
 	case tui.ActionConfirm:
-		m.open()
+		return m.open()
 	}
 	return m, nil
 }
 
-func (m *Model) open() {
+func (m *Model) open() (tea.Model, tea.Cmd) {
+	if m.startingID != "" {
+		m.status = m.tr.T("apps.status.busy_launch", "name", m.startingName)
+		return m, nil
+	}
 	item, ok := m.list.Selected()
 	if !ok {
-		return
+		return m, nil
 	}
 	var app apps.App
 	found := false
@@ -151,22 +194,35 @@ func (m *Model) open() {
 		}
 	}
 	if !found || app.Exec == "" {
-		return
+		return m, nil
 	}
 	argv, err := launch.Expand(app.Exec, app.Name, app.ID, app.Icon, app.Path)
 	if err != nil {
 		m.status = m.tr.T("apps.status.failed", "error", err.Error())
-		return
+		return m, nil
 	}
 	spec := launch.Spec{Argv: argv, Name: app.Name, ID: app.ID, Path: app.Path}
 	if !app.Terminal {
-		if err := launch.Start(spec); err != nil {
-			m.status = m.tr.T("apps.status.failed", "error", err.Error())
+		// Doom and other graphical apps take seconds to map a window. Show the
+		// launch before spawning so the key never looks dead, and keep it until
+		// the app exits. While it is set, another Enter is refused instead of
+		// starting a second app over the first.
+		m.startingID, m.startingName = app.ID, app.Name
+		m.status = m.tr.T("apps.status.starting", "name", app.Name)
+		return m, func() tea.Msg {
+			proc, err := launch.Start(spec)
+			return launchedMsg{name: app.Name, proc: proc, err: err}
 		}
-		return
 	}
 	if err := launch.Supervised(spec); err != nil {
 		m.status = m.tr.T("apps.status.failed", "error", err.Error())
+	}
+	return m, nil
+}
+
+func waitLaunch(p *launch.Process) tea.Cmd {
+	return func() tea.Msg {
+		return launchDoneMsg{name: p.Name(), err: p.Wait()}
 	}
 }
 
