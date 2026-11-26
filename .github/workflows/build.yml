@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,14 +26,19 @@ jobs:
   package:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: test
-    runs-on: ubuntu-latest
+    # The packages include an aarch64 cpz-system-apps binary, so the job must
+    # run on an ARM runner with an Arch Linux ARM container.  Using an x86_64
+    # makepkg host would label that package x86_64.
+    runs-on: ubuntu-24.04-arm
     container:
-      image: archlinux:base-devel
+      image: menci/archlinuxarm:base-devel
     env:
       GPG_KEY_ID: ${{ secrets.CPZ_UI_KEY_ID }}
+      GPG_PRIVATE_KEY: ${{ secrets.CPZ_UI_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.CPZ_UI_KEY_PASSPHRASE }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - run: pacman -Syu --noconfirm go git github-cli sudo gnupg
+      - run: pacman -Syu --noconfirm --disable-sandbox go git github-cli sudo gnupg
       - uses: actions/checkout@v4
       - name: builder user
         run: |
@@ -39,21 +47,17 @@ jobs:
       - name: build packages and repository
         run: sudo -u builder ./tools/build-repo.sh
       - name: require the signing key
-        run: test -n "$GPG_KEY_ID" || { echo "CPZ_UI_KEY_ID is not configured" >&2; exit 1; }
-      - name: sign
         run: |
-          printf '%s' "${{ secrets.CPZ_UI_KEY }}" | gpg --batch --import
-          for p in dist/repo/*.pkg.tar.*; do
-            case "$p" in *.sig) continue ;; esac
-            gpg --batch --yes --detach-sign -u "$GPG_KEY_ID" "$p"
-          done
-          cd dist/repo
-          find . -maxdepth 1 -name '*.pkg.tar.*' ! -name '*.sig' -print0 |
-            xargs -0 repo-add --sign --key "$GPG_KEY_ID" cpz-apps.db.tar.gz
+          test -n "$GPG_KEY_ID" -a -n "$GPG_PRIVATE_KEY" -a -n "$GPG_PASSPHRASE" || {
+            echo "CPZ_UI_KEY_ID, CPZ_UI_KEY and CPZ_UI_KEY_PASSPHRASE are required" >&2
+            exit 1
+          }
+      - name: sign
+        run: ./tools/sign-repo.sh
       - name: publish apps-stable
         run: |
           tag=apps-stable
           gh release view "$tag" >/dev/null 2>&1 || \
             gh release create "$tag" --title "CPZ apps (stable)" \
               --notes "Signed app repository. See cpz-arch for the trust root."
-          gh release upload "$tag" dist/repo/* --clobber
+          gh release upload "$tag" dist/signed/* --clobber
