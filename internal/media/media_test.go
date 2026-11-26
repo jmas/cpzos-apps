@@ -52,6 +52,27 @@ func TestUnmountCallsHelper(t *testing.T) {
 	}
 }
 
+func TestUnmountFallsBackToMountpoint(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "args")
+	helper := filepath.Join(dir, "media-umount")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CPZ_ARGS_LOG\"\n"
+	if err := os.WriteFile(helper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CPZ_MEDIA_UMOUNT", helper)
+	t.Setenv("CPZ_MEDIA_DIRECT", "1")
+	t.Setenv("CPZ_ARGS_LOG", logPath)
+
+	if err := Unmount(context.Background(), Entry{Mountpoint: "/media/USB"}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(logPath)
+	if strings.TrimSpace(string(b)) != "/media/USB" {
+		t.Fatalf("args = %q", b)
+	}
+}
+
 func TestRejectsTraversal(t *testing.T) {
 	if err := Unmount(context.Background(), Entry{Device: "/dev/../etc/shadow"}); err == nil {
 		t.Fatal("traversal device accepted")

@@ -1,14 +1,37 @@
 #!/bin/sh
-# Unmount one USB filesystem mounted by cpz-automount. The caller is the
-# unprivileged UI; sudoers allows only this file. The device is validated here
-# and again by cpz-automount before it touches the mount table.
+# Unmount one filesystem mounted by cpz-automount. The caller is the
+# unprivileged UI; sudoers allows only this file. Accept either the device
+# (/dev/sda1) or the mounted directory (/media/<label>); the device is
+# validated here and again by cpz-automount before the mount table is touched.
 set -eu
-[ "$#" -eq 1 ] || exit 2
+
+die() {
+    printf 'media-umount: %s\n' "$*" >&2
+    command -v logger >/dev/null 2>&1 && logger -t cpz-media-umount -- "$*" || true
+    exit 2
+}
+
+[ "$#" -eq 1 ] || die "usage: media-umount <device|mountpoint>"
 case "$1" in
+    /dev/?*)
+        dev=$1
+        ;;
+    /*)
+        dev=$(findmnt -n -o SOURCE --target "$1" 2>/dev/null | head -n 1) ||
+            die "not mounted: $1"
+        dev=${dev%%\[*}
+        [ -n "$dev" ] || die "not mounted: $1"
+        ;;
+    *)
+        die "invalid path: $1"
+        ;;
+esac
+case "$dev" in
     /dev/?*) ;;
-    *) exit 2 ;;
+    *) die "not a device: $dev" ;;
 esac
-case "$1" in
-    *..* | */*/*) exit 2 ;;
+case "$dev" in
+    *..* | */*/*) die "invalid device: $dev" ;;
 esac
-exec /usr/local/bin/cpz-automount umount "$1"
+[ -x /usr/local/bin/cpz-automount ] || die "cpz-automount is not installed"
+exec /usr/local/bin/cpz-automount umount "$dev"

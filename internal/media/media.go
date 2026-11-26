@@ -101,9 +101,14 @@ func human(n uint64) string {
 
 // Unmount asks the privileged helper to unmount the filesystem.
 func Unmount(ctx context.Context, e Entry) error {
-	dev := e.Device
-	if !strings.HasPrefix(dev, "/dev/") || strings.Contains(dev, "..") {
-		return fmt.Errorf("invalid device: %s", dev)
+	// Prefer the device; if the entry somehow has no device, the helper can
+	// resolve the mounted directory with findmnt.
+	target := e.Device
+	if !strings.HasPrefix(target, "/dev/") || strings.Contains(target, "..") {
+		target = e.Mountpoint
+	}
+	if target == "" || strings.Contains(target, "..") {
+		return fmt.Errorf("no device or mountpoint for %s", e.Label)
 	}
 	helper := os.Getenv("CPZ_MEDIA_UMOUNT")
 	if helper == "" {
@@ -111,9 +116,9 @@ func Unmount(ctx context.Context, e Entry) error {
 	}
 	var cmd *exec.Cmd
 	if os.Getenv("CPZ_MEDIA_DIRECT") != "" {
-		cmd = exec.CommandContext(ctx, helper, dev)
+		cmd = exec.CommandContext(ctx, helper, target)
 	} else {
-		cmd = exec.CommandContext(ctx, "sudo", "-n", helper, dev)
+		cmd = exec.CommandContext(ctx, "sudo", "-n", helper, target)
 	}
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	var buf bytes.Buffer
